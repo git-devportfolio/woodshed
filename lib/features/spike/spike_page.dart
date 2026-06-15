@@ -38,7 +38,10 @@ class _SpikePageState extends State<SpikePage> {
     FilePickerResult? result;
     try {
       result = await FilePicker.pickFiles(
-        type: FileType.audio,
+        // FileType.any (pas audio/*) : sur iOS, accept="audio/*" restreint souvent
+        // le choix au MP3. Sans filtre, l'app Fichiers complète est accessible
+        // (M4A, WAV…) ; un format non décodable affiche un message clair.
+        type: FileType.any,
         withData: true,
         // file_picker complète à tort avec `null` (fausse annulation) quand la
         // fenêtre perd/regagne le focus — déclenché notamment DevTools ouvert.
