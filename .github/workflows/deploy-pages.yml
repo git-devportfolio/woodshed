@@ -1,0 +1,51 @@
+name: Deploy PWA to GitHub Pages
+
+on:
+  push:
+    branches: [spike/web-audio-engine]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Une seule exécution de déploiement à la fois.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.0
+
+      - run: flutter pub get
+
+      # base-href doit correspondre au nom du dépôt : https://<user>.github.io/woodshed/
+      - run: flutter build web --release --base-href /woodshed/
+
+      # Active GitHub Pages automatiquement au premier passage (source = Actions).
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

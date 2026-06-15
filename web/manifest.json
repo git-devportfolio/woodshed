@@ -1,11 +1,11 @@
 {
-    "name": "woodshed",
+    "name": "woodshed — spike audio",
     "short_name": "woodshed",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "Audio looper pour la pratique instrumentale : transposition et vitesse en temps reel, boucle A/B, waveform.",
+    "background_color": "#121212",
+    "theme_color": "#673AB7",
+    "description": "Spike de validation du moteur audio temps reel (transposition / vitesse) dans Safari iOS.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
