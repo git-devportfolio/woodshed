@@ -68,7 +68,11 @@ window.woodshedAudioRegisterBackend('soundtouch', async (ctx) => {
     play() { if (ctx.state === 'suspended') ctx.resume(); if (buffer && !playing) startFrom(curPos()); },
     pause() { if (playing) { offset = curPos(); playing = false; stopSrc(); } },
     seek(s) { const wasPlaying = playing; offset = s; if (wasPlaying) startFrom(s); },
-    setTempo(r) { speed = r; applyParams(); },
+    setTempo(r) {
+      if (playing) { offset = curPos(); startedAt = ctx.currentTime; }
+      speed = r;
+      applyParams();
+    },
     setPitchSemitones(n) { pitchSemi = n; applyParams(); },
     setLoop(l) { loop = l; if (src) src.loop = l; },
     isPlaying() { return playing; },
