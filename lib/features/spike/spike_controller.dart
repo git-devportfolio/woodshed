@@ -13,7 +13,7 @@ class SpikeController extends ChangeNotifier {
   bool looping = false;
   bool isPlaying = false;
   bool loaded = false;
-  EngineKind engine = EngineKind.soundTouch;
+  EngineKind engine = EngineKind.rubberBand;
 
   Future<void> load(Uint8List bytes) async {
     await _engine.load(bytes);

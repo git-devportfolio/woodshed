@@ -4,7 +4,7 @@
   let ctx = null;            // AudioContext
   let decoded = null;        // AudioBuffer décodé
   let backend = null;        // backend actif
-  let backendId = 'soundtouch';
+  let backendId = 'rubberband';
   let positionCb = null;
   let pollTimer = null;
 
