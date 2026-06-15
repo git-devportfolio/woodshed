@@ -37,7 +37,14 @@ class _SpikePageState extends State<SpikePage> {
   Future<void> _pickFile() async {
     FilePickerResult? result;
     try {
-      result = await FilePicker.pickFiles(type: FileType.audio, withData: true);
+      result = await FilePicker.pickFiles(
+        type: FileType.audio,
+        withData: true,
+        // file_picker complète à tort avec `null` (fausse annulation) quand la
+        // fenêtre perd/regagne le focus — déclenché notamment DevTools ouvert.
+        // On désactive cette heuristique : sinon le fichier choisi n'arrive jamais.
+        cancelUploadOnWindowBlur: false,
+      );
     } catch (e) {
       _showMessage('Sélecteur de fichiers indisponible : $e');
       return;
