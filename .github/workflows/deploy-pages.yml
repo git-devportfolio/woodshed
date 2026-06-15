@@ -31,11 +31,7 @@ jobs:
       # base-href doit correspondre au nom du dépôt : https://<user>.github.io/woodshed/
       - run: flutter build web --release --base-href /woodshed/
 
-      # Active GitHub Pages automatiquement au premier passage (source = Actions).
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
+      # Prérequis : Pages activé une fois manuellement (Settings → Pages → Source : GitHub Actions).
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
