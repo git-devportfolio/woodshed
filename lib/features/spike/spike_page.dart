@@ -35,24 +35,36 @@ class _SpikePageState extends State<SpikePage> {
   }
 
   Future<void> _pickFile() async {
-    // FileType.any (pas audio/*) : sur iOS, ouvre l'app Fichiers complète au lieu
-    // d'un sélecteur restreint Musique/mémos.
-    final result = await FilePicker.pickFiles(type: FileType.any, withData: true);
-    final bytes = result?.files.firstOrNull?.bytes;
-    if (bytes == null) return;
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.pickFiles(type: FileType.audio, withData: true);
+    } catch (e) {
+      _showMessage('Sélecteur de fichiers indisponible : $e');
+      return;
+    }
+    final file = result?.files.firstOrNull;
+    if (file == null) {
+      _showMessage('Aucun fichier reçu (sélection annulée ou non transmise par le navigateur).');
+      return;
+    }
+    final bytes = file.bytes;
+    if (bytes == null) {
+      _showMessage('Impossible de lire les données de « ${file.name} ».');
+      return;
+    }
     try {
       await _c.load(bytes);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Fichier illisible dans Safari iOS. Formats fiables : MP3, M4A/AAC, WAV. '
-            '(OGG / FLAC / Opus ne sont pas décodables sur iPhone.)',
-          ),
-        ),
-      );
+    } catch (e) {
+      // Affiche l'erreur réelle (décodage iOS, worklet, etc.) au lieu d'échouer en silence.
+      _showMessage('Échec du chargement de « ${file.name} » : $e');
     }
+  }
+
+  void _showMessage(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 6)),
+    );
   }
 
   String _fmt(Duration d) =>

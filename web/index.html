@@ -31,6 +31,16 @@
 
   <title>woodshed</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Console embarquée pour debug sur iPhone (sans Mac) : ouvrir l'URL avec ?debug -->
+  <script>
+    if (location.search.indexOf('debug') !== -1 || location.hash.indexOf('debug') !== -1) {
+      var erudaScript = document.createElement('script');
+      erudaScript.src = 'https://cdn.jsdelivr.net/npm/eruda';
+      erudaScript.onload = function () { try { eruda.init(); } catch (_) {} };
+      document.head.appendChild(erudaScript);
+    }
+  </script>
 </head>
 <body>
   <!--
