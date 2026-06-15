@@ -27,7 +27,7 @@ window.woodshedAudioRegisterBackend('plain', async (ctx) => {
     async load(decoded) { buffer = decoded; offset = 0; playing = false; stopSrc(); },
     play() { if (buffer && !playing) startFrom(curPos()); },
     pause() { if (playing) { offset = curPos(); playing = false; stopSrc(); } },
-    seek(s) { const wasPlaying = playing; offset = s; if (wasPlaying) startFrom(s); else { playing = false; } },
+    seek(s) { const wasPlaying = playing; offset = s; if (wasPlaying) startFrom(s); },
     setTempo(_r) { /* backend plain : non supporté (vitesse=1.0) */ },
     setPitchSemitones(_n) { /* backend plain : non supporté */ },
     setLoop(l) { loop = l; if (src) src.loop = l; },

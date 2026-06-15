@@ -34,7 +34,7 @@
       if (backend) await backend.load(decoded);
     },
     play() { if (ctx.state === 'suspended') ctx.resume(); backend && backend.play(); startPolling(); },
-    pause() { backend && backend.pause(); },
+    pause() { backend && backend.pause(); stopPolling(); },
     seek(seconds) { backend && backend.seek(seconds); },
     setTempo(ratio) { backend && backend.setTempo(ratio); },
     setPitchSemitones(n) { backend && backend.setPitchSemitones(n); },
@@ -58,5 +58,6 @@
     getGlitchCount() { return backend ? backend.glitchCount() : 0; },
     get duration() { return decoded ? decoded.duration : 0; },
     onPosition(cb) { positionCb = cb; },
+    dispose() { stopPolling(); if (backend) backend.dispose(); },
   };
 })();

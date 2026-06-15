@@ -21,6 +21,7 @@ extension type _Facade._(JSObject _) implements JSObject {
   external int getGlitchCount();
   external double get duration;
   external void onPosition(JSFunction cb);
+  external void dispose();
 }
 
 /// Implémentation [AudioEngine] sur le web, proxy vers la façade `window.woodshedAudio`.
@@ -28,6 +29,8 @@ class WebAudioEngine implements AudioEngine {
   final _positionController = StreamController<Duration>.broadcast();
   Duration _duration = Duration.zero;
 
+  /// Doit être appelée avant toute autre opération : initialise l'AudioContext
+  /// et le backend côté façade JS, et branche le flux de position.
   Future<void> init() async {
     _facade.onPosition(
       ((double seconds) {
@@ -52,7 +55,7 @@ class WebAudioEngine implements AudioEngine {
   Future<void> seek(Duration position) async =>
       _facade.seek(position.inMilliseconds / 1000.0);
   @override
-  Future<void> setSpeed(double rate) async => _facade.setTempo(rate);
+  Future<void> setSpeed(double rate) async => _facade.setTempo(rate); // vitesse -> tempo (façade)
   @override
   Future<void> setPitch(double semitones) async =>
       _facade.setPitchSemitones(semitones);
@@ -70,7 +73,10 @@ class WebAudioEngine implements AudioEngine {
   int get glitchCount => _facade.getGlitchCount();
 
   @override
-  Future<void> dispose() async => _positionController.close();
+  Future<void> dispose() async {
+    _facade.dispose();
+    await _positionController.close();
+  }
 
   @override
   Future<void> setVolume(double volume) async =>
