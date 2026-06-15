@@ -15,6 +15,12 @@ class SpikeController extends ChangeNotifier {
   bool loaded = false;
   EngineKind engine = EngineKind.plain;
 
+  Future<void> load(Uint8List bytes) async {
+    await _engine.load(bytes);
+    loaded = true;
+    notifyListeners();
+  }
+
   Future<void> setPitch(double semitones) async {
     pitch = clampSemitones(semitones);
     await _engine.setPitch(pitch);
@@ -39,7 +45,19 @@ class SpikeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> play() async { await _engine.play(); isPlaying = true; notifyListeners(); }
-  Future<void> pause() async { await _engine.pause(); isPlaying = false; notifyListeners(); }
-  Future<void> restart() async { await _engine.seek(Duration.zero); }
+  Future<void> play() async {
+    await _engine.play();
+    isPlaying = true;
+    notifyListeners();
+  }
+
+  Future<void> pause() async {
+    await _engine.pause();
+    isPlaying = false;
+    notifyListeners();
+  }
+
+  Future<void> restart() async {
+    await _engine.seek(Duration.zero);
+  }
 }

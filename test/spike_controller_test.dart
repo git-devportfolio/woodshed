@@ -72,4 +72,27 @@ void main() {
     expect(engine.lastSpeed, 0.75);
     expect(controller.speed, 0.75);
   });
+
+  test('toggleLoop bascule looping et délègue', () async {
+    await controller.toggleLoop();
+    expect(controller.looping, true);
+    expect(engine.calls, contains('loop:true'));
+    await controller.toggleLoop();
+    expect(controller.looping, false);
+  });
+
+  test('play/pause mettent à jour isPlaying et délèguent', () async {
+    await controller.play();
+    expect(controller.isPlaying, true);
+    expect(engine.calls, contains('play'));
+    await controller.pause();
+    expect(controller.isPlaying, false);
+    expect(engine.calls, contains('pause'));
+  });
+
+  test('load marque loaded et délègue au moteur', () async {
+    await controller.load(Uint8List(0));
+    expect(controller.loaded, true);
+    expect(engine.calls, contains('load'));
+  });
 }

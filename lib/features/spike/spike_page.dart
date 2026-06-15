@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../core/audio/engine_kind.dart';
@@ -13,6 +14,7 @@ class SpikePage extends StatefulWidget {
 class _SpikePageState extends State<SpikePage> {
   late final WebAudioEngine _engine;
   late final SpikeController _c;
+  StreamSubscription<Duration>? _posSub;
   Duration _position = Duration.zero;
 
   @override
@@ -21,16 +23,22 @@ class _SpikePageState extends State<SpikePage> {
     _engine = WebAudioEngine();
     _c = SpikeController(_engine);
     _engine.init();
-    _engine.position.listen((p) => setState(() => _position = p));
+    _posSub = _engine.position.listen((p) => setState(() => _position = p));
+  }
+
+  @override
+  void dispose() {
+    _posSub?.cancel();
+    _c.dispose();
+    _engine.dispose();
+    super.dispose();
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.pickFiles(
-        type: FileType.audio, withData: true);
-    final bytes = result?.files.single.bytes;
+    final result = await FilePicker.pickFiles(type: FileType.audio, withData: true);
+    final bytes = result?.files.firstOrNull?.bytes;
     if (bytes == null) return;
-    await _engine.load(bytes);
-    setState(() => _c.loaded = true);
+    await _c.load(bytes);
   }
 
   String _fmt(Duration d) =>
@@ -102,7 +110,7 @@ class _SpikePageState extends State<SpikePage> {
               const Text('Moteur'),
               Wrap(
                 spacing: 8,
-                children: [EngineKind.soundTouch, EngineKind.rubberBand]
+                children: [EngineKind.plain, EngineKind.soundTouch, EngineKind.rubberBand]
                     .map((k) => ChoiceChip(
                           label: Text(k.name),
                           selected: _c.engine == k,
