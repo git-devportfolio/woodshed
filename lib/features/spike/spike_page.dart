@@ -35,10 +35,24 @@ class _SpikePageState extends State<SpikePage> {
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.pickFiles(type: FileType.audio, withData: true);
+    // FileType.any (pas audio/*) : sur iOS, ouvre l'app Fichiers complète au lieu
+    // d'un sélecteur restreint Musique/mémos.
+    final result = await FilePicker.pickFiles(type: FileType.any, withData: true);
     final bytes = result?.files.firstOrNull?.bytes;
     if (bytes == null) return;
-    await _c.load(bytes);
+    try {
+      await _c.load(bytes);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Fichier illisible dans Safari iOS. Formats fiables : MP3, M4A/AAC, WAV. '
+            '(OGG / FLAC / Opus ne sont pas décodables sur iPhone.)',
+          ),
+        ),
+      );
+    }
   }
 
   String _fmt(Duration d) =>
