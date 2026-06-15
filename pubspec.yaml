@@ -38,6 +38,7 @@ dependencies:
   just_audio_background: ^0.0.1-beta.17
   just_waveform: ^0.0.7
   file_picker: ^11.0.2
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:
