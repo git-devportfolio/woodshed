@@ -12,7 +12,7 @@
 //   ['tempo', ratio]   -> setTempo(ratio)
 //   ['quality', bool]  -> haute qualité
 //   ['close']          -> libère le worklet
-window.woodshedAudioRegisterBackend('rubberband', async (ctx) => {
+window.woodshedAudioRegisterBackend('rubberband', async (ctx, destination) => {
   await ctx.audioWorklet.addModule('vendor/rubberband/rubberband-processor.js');
 
   let node = null;
@@ -32,7 +32,7 @@ window.woodshedAudioRegisterBackend('rubberband', async (ctx) => {
       numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
     });
     node.port.postMessage(JSON.stringify(['quality', true])); // haute qualité
-    node.connect(ctx.destination);
+    node.connect(destination);
     applyParams();
   }
   // Même montage que SoundTouch : vitesse via playbackRate ; Rubber Band ne fait QUE le pitch.

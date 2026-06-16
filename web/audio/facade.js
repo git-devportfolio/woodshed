@@ -2,6 +2,7 @@
 // Route vers un backend interchangeable ('plain' | 'soundtouch' | 'rubberband').
 (function () {
   let ctx = null;            // AudioContext
+  let masterGain = null;     // gain maître (volume), entre les backends et la sortie
   let decoded = null;        // AudioBuffer décodé
   let backend = null;        // backend actif
   let backendId = 'rubberband';
@@ -21,7 +22,11 @@
 
   window.woodshedAudio = {
     async init() {
-      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!ctx) {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = ctx.createGain();
+        masterGain.connect(ctx.destination);
+      }
       await this.setEngine(backendId);
     },
     async load(uint8Array) {
@@ -51,6 +56,7 @@
     setTempo(ratio) { backend && backend.setTempo(ratio); },
     setPitchSemitones(n) { backend && backend.setPitchSemitones(n); },
     setLoop(loop) { backend && backend.setLoop(loop); },
+    setVolume(v) { if (masterGain) masterGain.gain.value = v; },
     async setEngine(id) {
       const wasPlaying = backend ? backend.isPlaying() : false;
       const pos = backend ? backend.positionSeconds() : 0;
@@ -59,7 +65,7 @@
       if (backend) backend.dispose();
       const factory = backends[id];
       if (!factory) throw new Error('Backend inconnu: ' + id);
-      backend = await factory(ctx);
+      backend = await factory(ctx, masterGain);
       backendId = id;
       console.log('[woodshedAudio] setEngine: moteur "' + id + '" prêt');
       if (decoded) await backend.load(decoded);

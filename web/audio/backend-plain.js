@@ -1,4 +1,4 @@
-window.woodshedAudioRegisterBackend('plain', async (ctx) => {
+window.woodshedAudioRegisterBackend('plain', async (ctx, destination) => {
   let buffer = null, src = null, playing = false;
   let startedAt = 0;      // ctx.currentTime au démarrage
   let offset = 0;         // position (s) au démarrage
@@ -17,7 +17,7 @@ window.woodshedAudioRegisterBackend('plain', async (ctx) => {
     src = ctx.createBufferSource();
     src.buffer = buffer;
     src.loop = loop;
-    src.connect(ctx.destination);
+    src.connect(destination);
     offset = pos; startedAt = ctx.currentTime;
     src.start(0, pos);
     playing = true;

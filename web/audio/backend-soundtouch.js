@@ -13,7 +13,7 @@
 // de la source pour qu'il annule lui-même le décalage de hauteur dû au resampling,
 // puis 'pitchSemitones' porte la transposition demandée par l'utilisateur.
 // (Équivalent exact, mais sans erreur d'arrondi, à pitchSemitones - 12*log2(speed).)
-window.woodshedAudioRegisterBackend('soundtouch', async (ctx) => {
+window.woodshedAudioRegisterBackend('soundtouch', async (ctx, destination) => {
   await ctx.audioWorklet.addModule('vendor/soundtouch/soundtouch-processor.js');
 
   let node = null;                 // AudioWorkletNode 'soundtouch-processor' (pitch-shifter)
@@ -29,7 +29,7 @@ window.woodshedAudioRegisterBackend('soundtouch', async (ctx) => {
     node = new AudioWorkletNode(ctx, 'soundtouch-processor', {
       numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
     });
-    node.connect(ctx.destination);
+    node.connect(destination);
     applyParams();
   }
   // La vitesse vient de src.playbackRate ; le worklet ne fait QUE du pitch (mode 1:1).

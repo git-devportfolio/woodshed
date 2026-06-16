@@ -20,6 +20,7 @@ extension type _Facade._(JSObject _) implements JSObject {
   external JSPromise<JSAny?> setEngine(String id);
   external int getGlitchCount();
   external double get duration;
+  external void setVolume(double v);
   external void onPosition(JSFunction cb);
   external void resume();
   external void dispose();
@@ -92,8 +93,7 @@ class WebAudioEngine implements AudioEngine {
   }
 
   @override
-  Future<void> setVolume(double volume) async =>
-      throw UnimplementedError('Hors périmètre du spike');
+  Future<void> setVolume(double volume) async => _facade.setVolume(volume);
   @override
   Future<void> setLoopRange(Duration a, Duration b) async =>
       throw UnimplementedError('Hors périmètre du spike');
