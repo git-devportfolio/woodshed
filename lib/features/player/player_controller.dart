@@ -23,6 +23,7 @@ class PlayerController extends ChangeNotifier {
   final Duration saveDebounce;
 
   bool isPlaying = false;
+  bool _disposed = false;
 
   /// Dernière cible de seek (exposée pour les tests).
   @visibleForTesting
@@ -44,6 +45,7 @@ class PlayerController extends ChangeNotifier {
   Future<void> setPitch(double semitones) async {
     track.settings.pitchSemitones = clampSemitones(semitones);
     await _engine.setPitch(track.settings.pitchSemitones);
+    if (_disposed) return;
     _scheduleSave();
     notifyListeners();
   }
@@ -51,25 +53,29 @@ class PlayerController extends ChangeNotifier {
   Future<void> setSpeed(double rate) async {
     track.settings.speed = rate;
     await _engine.setSpeed(rate);
+    if (_disposed) return;
     _scheduleSave();
     notifyListeners();
   }
 
   Future<void> setVolume(double v) async {
-    track.settings.volume = v;
-    await _engine.setVolume(v);
+    track.settings.volume = v.clamp(0.0, 1.0);
+    await _engine.setVolume(track.settings.volume);
+    if (_disposed) return;
     _scheduleSave();
     notifyListeners();
   }
 
   Future<void> play() async {
     await _engine.play();
+    if (_disposed) return;
     isPlaying = true;
     notifyListeners();
   }
 
   Future<void> pause() async {
     await _engine.pause();
+    if (_disposed) return;
     isPlaying = false;
     notifyListeners();
   }
@@ -95,8 +101,9 @@ class PlayerController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _saveTimer?.cancel();
-    _save(); // sauvegarde finale immédiate en quittant le lecteur
+    _save(); // sauvegarde finale en quittant (fire-and-forget : non attendue)
     super.dispose();
   }
 }
