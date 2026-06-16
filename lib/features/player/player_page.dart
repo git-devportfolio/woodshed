@@ -31,7 +31,9 @@ class _PlayerPageState extends State<PlayerPage> {
     _posSub = _engine.position.listen((p) {
       if (!_scrubbing) setState(() => _position = p);
     });
-    _engine.init().then((_) => _loadTrack());
+    _engine.init().then((_) {
+      if (mounted) _loadTrack();
+    });
   }
 
   Future<void> _loadTrack() async {
