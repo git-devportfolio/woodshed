@@ -39,9 +39,6 @@ class _SpikePageState extends State<SpikePage> {
   }
 
   Future<void> _pickFile() async {
-    // Reprendre l'AudioContext DANS le geste utilisateur (iOS) AVANT le sélecteur :
-    // sinon le contexte reste suspendu et decodeAudioData ne se résout jamais (hang).
-    _engine.resume();
     FilePickerResult? result;
     try {
       result = await FilePicker.pickFiles(

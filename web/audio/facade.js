@@ -26,15 +26,17 @@
     },
     async load(uint8Array) {
       console.log('[woodshedAudio] load: début, octets=' + uint8Array.byteLength + ', moteur=' + backendId);
-      // L'import est déclenché par un geste utilisateur : on en profite pour reprendre
-      // l'AudioContext (suspendu au démarrage sur iOS/Chrome) avant de décoder.
-      if (ctx && ctx.state === 'suspended') { try { await ctx.resume(); } catch (e) {} }
-      // decodeAudioData requiert un ArrayBuffer ; on copie pour ne pas détacher l'original.
+      // decodeAudioData détache l'ArrayBuffer : on copie.
       const arrayBuffer = uint8Array.buffer.slice(
         uint8Array.byteOffset,
         uint8Array.byteOffset + uint8Array.byteLength,
       );
-      decoded = await ctx.decodeAudioData(arrayBuffer);
+      // Décodage via un OfflineAudioContext : contrairement au contexte principal, il n'est
+      // pas "suspendu" sur iOS, donc decodeAudioData se résout sans geste de reprise (le
+      // contexte principal n'est repris qu'au Play). Évite le blocage du chargement sur iPhone.
+      const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const decodeCtx = new OfflineCtx(2, 1, ctx.sampleRate);
+      decoded = await decodeCtx.decodeAudioData(arrayBuffer);
       console.log('[woodshedAudio] load: décodé, durée=' + decoded.duration.toFixed(1) + 's');
       if (backend) {
         await backend.load(decoded);
