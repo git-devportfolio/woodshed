@@ -52,7 +52,7 @@ class _LibraryPageState extends State<LibraryPage> {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => PlayerPage(track: t, repo: widget.repo)),
     );
-    _reload(); // au retour : la durée/les réglages ont pu changer
+    if (mounted) _reload(); // au retour : la durée/les réglages ont pu changer
   }
 
   Future<void> _delete(Track t) async {
@@ -80,6 +80,15 @@ class _LibraryPageState extends State<LibraryPage> {
       body: FutureBuilder<List<Track>>(
         future: _tracks,
         builder: (context, snap) {
+          if (snap.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text('Erreur de bibliothèque : ${snap.error}',
+                    textAlign: TextAlign.center),
+              ),
+            );
+          }
           if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
