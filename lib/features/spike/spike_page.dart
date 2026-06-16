@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../core/audio/engine_kind.dart';
 import '../../core/audio/web_audio_engine.dart';
+import '../../core/io/audio_file_picker.dart';
 import 'spike_controller.dart';
 
 class SpikePage extends StatefulWidget {
@@ -18,6 +18,7 @@ class _SpikePageState extends State<SpikePage> {
   Duration _position = Duration.zero;
   bool _engineReady = false;
   bool _loading = false;
+  String? _trackName;
 
   @override
   void initState() {
@@ -39,42 +40,24 @@ class _SpikePageState extends State<SpikePage> {
   }
 
   Future<void> _pickFile() async {
-    FilePickerResult? result;
+    PickedAudio? picked;
     try {
-      result = await FilePicker.pickFiles(
-        // FileType.any (pas audio/*) : sur iOS, accept="audio/*" restreint souvent
-        // le choix au MP3. Sans filtre, l'app Fichiers complète est accessible
-        // (M4A, WAV…) ; un format non décodable affiche un message clair.
-        type: FileType.any,
-        withData: true,
-        // file_picker complète à tort avec `null` (fausse annulation) quand la
-        // fenêtre perd/regagne le focus — déclenché notamment DevTools ouvert.
-        // On désactive cette heuristique : sinon le fichier choisi n'arrive jamais.
-        cancelUploadOnWindowBlur: false,
-      );
+      picked = await pickAudioFile();
     } catch (e) {
       _showMessage('Sélecteur de fichiers indisponible : $e');
       return;
     }
-    final file = result?.files.firstOrNull;
-    if (file == null) {
-      _showMessage('Aucun fichier reçu (sélection annulée ou non transmise par le navigateur).');
-      return;
-    }
-    final bytes = file.bytes;
-    if (bytes == null) {
-      _showMessage('Impossible de lire les données de « ${file.name} ».');
-      return;
-    }
+    if (picked == null) return; // annulé / aucun fichier
     setState(() => _loading = true);
     try {
-      await _c.load(bytes).timeout(const Duration(seconds: 20));
+      await _c.load(picked.bytes).timeout(const Duration(seconds: 20));
+      if (mounted) setState(() => _trackName = picked!.name);
     } on TimeoutException {
       _showMessage('Le chargement a expiré : le contexte audio iOS est peut-être resté '
           'suspendu. Touche l\'écran, puis réessaie.');
     } catch (e) {
       // Affiche l'erreur réelle (décodage iOS, worklet, etc.) au lieu d'échouer en silence.
-      _showMessage('Échec du chargement de « ${file.name} » : $e');
+      _showMessage('Échec du chargement de « ${picked.name} » : $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -117,6 +100,16 @@ class _SpikePageState extends State<SpikePage> {
                         : 'Charger un morceau'),
               ),
               const SizedBox(height: 16),
+              if (_trackName != null) ...[
+                Text(
+                  _trackName!,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+              ],
               Text('${_fmt(_position)} / ${_fmt(_engine.duration)}'),
               Text('Moteur : ${_c.engine.name} · glitches : ${_engine.glitchCount}'),
               const SizedBox(height: 8),
