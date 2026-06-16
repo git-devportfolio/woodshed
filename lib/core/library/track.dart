@@ -44,11 +44,23 @@ class Track {
         'settings': settings.toJson(),
       };
 
-  factory Track.fromJson(Map json) => Track(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        durationMs: (json['durationMs'] as num).toInt(),
-        importedAt: DateTime.parse(json['importedAt'] as String),
-        settings: TrackSettings.fromJson(json['settings'] as Map),
-      );
+  factory Track.fromJson(Map json) {
+    final id = json['id'];
+    final name = json['name'];
+    final durationMs = json['durationMs'];
+    final importedAt = json['importedAt'];
+    if (id is! String ||
+        name is! String ||
+        durationMs is! num ||
+        importedAt is! String) {
+      throw FormatException('Track JSON invalide : $json');
+    }
+    return Track(
+      id: id,
+      name: name,
+      durationMs: durationMs.toInt(),
+      importedAt: DateTime.parse(importedAt),
+      settings: TrackSettings.fromJson((json['settings'] as Map?) ?? const {}),
+    );
+  }
 }

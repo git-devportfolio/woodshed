@@ -34,4 +34,15 @@ void main() {
     expect(back.settings.speed, 0.5);
     expect(back.settings.volume, 0.8);
   });
+
+  test('TrackSettings.fromJson tolère les clés manquantes', () {
+    final s = TrackSettings.fromJson({});
+    expect(s.pitchSemitones, 0);
+    expect(s.speed, 1.0);
+    expect(s.volume, 1.0);
+  });
+
+  test('Track.fromJson lève une FormatException sur JSON invalide', () {
+    expect(() => Track.fromJson({'name': 'x'}), throwsFormatException);
+  });
 }
