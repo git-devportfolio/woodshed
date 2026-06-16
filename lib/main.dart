@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
-import 'features/spike/spike_page.dart';
+import 'package:idb_shim/idb_browser.dart';
 
-void main() => runApp(const WoodshedApp());
+import 'core/io/persistent_storage.dart';
+import 'core/library/idb_library_repository.dart';
+import 'core/library/library_repository.dart';
+import 'features/library/library_page.dart';
+
+void main() {
+  final repo = IdbLibraryRepository(idbFactoryBrowser);
+  requestPersistentStorage();
+  runApp(WoodshedApp(repo: repo));
+}
 
 class WoodshedApp extends StatelessWidget {
-  const WoodshedApp({super.key});
+  const WoodshedApp({super.key, required this.repo});
+  final LibraryRepository repo;
+
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'woodshed — spike',
+        title: 'woodshed',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         ),
-        home: const SpikePage(),
+        home: LibraryPage(repo: repo),
       );
 }
