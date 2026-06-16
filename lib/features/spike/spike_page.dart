@@ -16,13 +16,17 @@ class _SpikePageState extends State<SpikePage> {
   late final SpikeController _c;
   StreamSubscription<Duration>? _posSub;
   Duration _position = Duration.zero;
+  bool _engineReady = false;
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
     _engine = WebAudioEngine();
     _c = SpikeController(_engine);
-    _engine.init();
+    _engine.init().then((_) {
+      if (mounted) setState(() => _engineReady = true);
+    });
     _posSub = _engine.position.listen((p) => setState(() => _position = p));
   }
 
@@ -62,11 +66,14 @@ class _SpikePageState extends State<SpikePage> {
       _showMessage('Impossible de lire les données de « ${file.name} ».');
       return;
     }
+    setState(() => _loading = true);
     try {
       await _c.load(bytes);
     } catch (e) {
       // Affiche l'erreur réelle (décodage iOS, worklet, etc.) au lieu d'échouer en silence.
       _showMessage('Échec du chargement de « ${file.name} » : $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -92,9 +99,19 @@ class _SpikePageState extends State<SpikePage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               FilledButton.icon(
-                onPressed: _pickFile,
-                icon: const Icon(Icons.folder_open),
-                label: const Text('Charger un morceau'),
+                onPressed: (_engineReady && !_loading) ? _pickFile : null,
+                icon: _loading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.folder_open),
+                label: Text(!_engineReady
+                    ? 'Initialisation du moteur…'
+                    : _loading
+                        ? 'Chargement…'
+                        : 'Charger un morceau'),
               ),
               const SizedBox(height: 16),
               Text('${_fmt(_position)} / ${_fmt(_engine.duration)}'),
@@ -114,11 +131,6 @@ class _SpikePageState extends State<SpikePage> {
                     iconSize: 32,
                     onPressed: _c.loaded ? _c.restart : null,
                     icon: const Icon(Icons.replay),
-                  ),
-                  IconButton(
-                    iconSize: 32,
-                    onPressed: _c.loaded ? _c.toggleLoop : null,
-                    icon: Icon(_c.looping ? Icons.repeat_on : Icons.repeat),
                   ),
                 ],
               ),

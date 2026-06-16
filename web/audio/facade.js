@@ -25,13 +25,23 @@
       await this.setEngine(backendId);
     },
     async load(uint8Array) {
+      console.log('[woodshedAudio] load: début, octets=' + uint8Array.byteLength + ', moteur=' + backendId);
+      // L'import est déclenché par un geste utilisateur : on en profite pour reprendre
+      // l'AudioContext (suspendu au démarrage sur iOS/Chrome) avant de décoder.
+      if (ctx && ctx.state === 'suspended') { try { await ctx.resume(); } catch (e) {} }
       // decodeAudioData requiert un ArrayBuffer ; on copie pour ne pas détacher l'original.
       const arrayBuffer = uint8Array.buffer.slice(
         uint8Array.byteOffset,
         uint8Array.byteOffset + uint8Array.byteLength,
       );
       decoded = await ctx.decodeAudioData(arrayBuffer);
-      if (backend) await backend.load(decoded);
+      console.log('[woodshedAudio] load: décodé, durée=' + decoded.duration.toFixed(1) + 's');
+      if (backend) {
+        await backend.load(decoded);
+        console.log('[woodshedAudio] load: backend chargé, OK');
+      } else {
+        console.warn('[woodshedAudio] load: aucun backend actif au chargement');
+      }
     },
     play() { if (ctx.state === 'suspended') ctx.resume(); backend && backend.play(); startPolling(); },
     pause() { backend && backend.pause(); stopPolling(); },
@@ -49,6 +59,7 @@
       if (!factory) throw new Error('Backend inconnu: ' + id);
       backend = await factory(ctx);
       backendId = id;
+      console.log('[woodshedAudio] setEngine: moteur "' + id + '" prêt');
       if (decoded) await backend.load(decoded);
       backend.setTempo(tempo);
       backend.setPitchSemitones(pitch);

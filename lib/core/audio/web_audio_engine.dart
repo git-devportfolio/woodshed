@@ -28,21 +28,28 @@ extension type _Facade._(JSObject _) implements JSObject {
 class WebAudioEngine implements AudioEngine {
   final _positionController = StreamController<Duration>.broadcast();
   Duration _duration = Duration.zero;
+  Future<void>? _ready;
 
   /// Doit être appelée avant toute autre opération : initialise l'AudioContext
   /// et le backend côté façade JS, et branche le flux de position.
-  Future<void> init() async {
+  Future<void> init() {
     _facade.onPosition(
       ((double seconds) {
         _positionController.add(
             Duration(milliseconds: (seconds * 1000).round()));
       }).toJS,
     );
-    await _facade.init().toDart;
+    return _ready = _facade.init().toDart.then((_) {});
   }
+
+  /// Se résout quand le moteur (AudioContext + worklet) est prêt.
+  Future<void> get ready => _ready ?? Future<void>.value();
 
   @override
   Future<void> load(Uint8List bytes) async {
+    // Attendre que le moteur soit prêt : sinon le 1er import (worklet Rubber Band
+    // ~612 Ko encore en cours de chargement) n'aboutit pas et le Play reste grisé.
+    await ready;
     await _facade.load(bytes.toJS).toDart;
     _duration = Duration(milliseconds: (_facade.duration * 1000).round());
   }
