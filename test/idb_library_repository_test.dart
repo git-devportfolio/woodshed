@@ -46,4 +46,13 @@ void main() {
     expect(await repo.listTracks(), isEmpty);
     expect(() => repo.loadAudio(t.id), throwsA(isA<StateError>()));
   });
+
+  test('loadAudio lève StateError pour un id inconnu', () async {
+    expect(() => repo.loadAudio('inexistant'), throwsA(isA<StateError>()));
+  });
+
+  test('updateSettings est un no-op pour un id inconnu', () async {
+    await repo.updateSettings('inexistant', TrackSettings(pitchSemitones: 2));
+    expect(await repo.listTracks(), isEmpty); // ne crée pas de morceau fantôme
+  });
 }

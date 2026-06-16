@@ -21,6 +21,8 @@ class IdbLibraryRepository implements LibraryRepository {
   static const _uuid = Uuid();
 
   Future<Database> _open() async {
+    // Pas de garde contre les appels concurrents : acceptable ici, l'app n'ouvre
+    // jamais deux opérations DB simultanées au démarrage.
     return _db ??= await _factory.open(
       _dbName,
       version: 1,
@@ -74,9 +76,12 @@ class IdbLibraryRepository implements LibraryRepository {
     if (value == null) {
       throw StateError('Audio introuvable pour le morceau $id');
     }
-    return value as Uint8List;
+    return value is Uint8List
+        ? value
+        : Uint8List.fromList((value as List).cast<int>());
   }
 
+  /// No-op si le morceau [id] n'existe pas (ex. supprimé pendant un debounce).
   @override
   Future<void> updateSettings(String id, TrackSettings settings) async {
     final db = await _open();
