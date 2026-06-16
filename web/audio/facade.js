@@ -69,6 +69,8 @@
     getGlitchCount() { return backend ? backend.glitchCount() : 0; },
     get duration() { return decoded ? decoded.duration : 0; },
     onPosition(cb) { positionCb = cb; },
+    // À appeler dans un geste utilisateur (iOS) pour sortir l'AudioContext de l'état suspendu.
+    resume() { if (ctx && ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} } },
     dispose() { stopPolling(); if (backend) backend.dispose(); },
   };
 })();

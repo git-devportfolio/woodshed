@@ -21,6 +21,7 @@ extension type _Facade._(JSObject _) implements JSObject {
   external int getGlitchCount();
   external double get duration;
   external void onPosition(JSFunction cb);
+  external void resume();
   external void dispose();
 }
 
@@ -53,6 +54,11 @@ class WebAudioEngine implements AudioEngine {
     await _facade.load(bytes.toJS).toDart;
     _duration = Duration(milliseconds: (_facade.duration * 1000).round());
   }
+
+  /// Reprend l'AudioContext. À appeler DANS un geste utilisateur (iOS exige
+  /// resume() pendant un geste, sinon le contexte reste suspendu et
+  /// decodeAudioData ne se résout jamais).
+  void resume() => _facade.resume();
 
   @override
   Future<void> play() async => _facade.play();

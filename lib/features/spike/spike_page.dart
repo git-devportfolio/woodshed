@@ -39,6 +39,9 @@ class _SpikePageState extends State<SpikePage> {
   }
 
   Future<void> _pickFile() async {
+    // Reprendre l'AudioContext DANS le geste utilisateur (iOS) AVANT le sélecteur :
+    // sinon le contexte reste suspendu et decodeAudioData ne se résout jamais (hang).
+    _engine.resume();
     FilePickerResult? result;
     try {
       result = await FilePicker.pickFiles(
@@ -68,7 +71,10 @@ class _SpikePageState extends State<SpikePage> {
     }
     setState(() => _loading = true);
     try {
-      await _c.load(bytes);
+      await _c.load(bytes).timeout(const Duration(seconds: 20));
+    } on TimeoutException {
+      _showMessage('Le chargement a expiré : le contexte audio iOS est peut-être resté '
+          'suspendu. Touche l\'écran, puis réessaie.');
     } catch (e) {
       // Affiche l'erreur réelle (décodage iOS, worklet, etc.) au lieu d'échouer en silence.
       _showMessage('Échec du chargement de « ${file.name} » : $e');
