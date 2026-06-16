@@ -93,7 +93,8 @@ On ajoute aussi à la façade une méthode **`probeDuration(bytes) → secondes`
 ## 5. UI / flux (deux écrans)
 
 - **`LibraryPage`** (nouvel accueil) : liste des morceaux (nom + durée formatée), bouton **+ import**
-  (file_picker → `addTrack`), **suppression** (swipe ou appui long → confirmation). Liste vide →
+  (sélecteur natif `pickAudioFile()` déjà construit dans `lib/core/io/audio_file_picker.dart` →
+  `probeDuration` → `addTrack`), **suppression** (swipe ou appui long → confirmation). Liste vide →
   invite à importer. Tap sur un morceau → navigue vers le lecteur.
 - **`PlayerPage`** (refonte de `SpikePage`) : reçoit un `Track`, charge ses octets via le repo →
   `engine.load`, **applique les réglages sauvegardés**, **auto-sauvegarde** (debounce ~500 ms) à
@@ -135,7 +136,8 @@ LECTEUR  (← retour)
 - **Quota** : un import volumineux peut échouer → message ; pas de gestion de quota avancée en v1.
 - **Migration de schéma** : versionner la base IndexedDB (`onUpgradeNeeded`) dès le départ pour pouvoir
   ajouter `loopA/loopB` à `TrackSettings` sans casser les données existantes.
-- **`file_picker`** : conserver `cancelUploadOnWindowBlur: false` + `FileType.any` (acquis du spike).
+- **Sélecteur de fichier** : on utilise le `<input type="file">` natif (`pickAudioFile()`) construit
+  pendant le spike ; `package:file_picker` a été abandonné sur web (fausses annulations iOS).
 
 ## 8. Prochaine étape
 
