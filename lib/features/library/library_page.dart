@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/audio/web_audio_engine.dart';
 import '../../core/audio/probe_duration.dart';
 import '../../core/io/audio_file_picker.dart';
 import '../../core/library/library_repository.dart';
@@ -6,8 +7,9 @@ import '../../core/library/track.dart';
 import '../player/player_page.dart';
 
 class LibraryPage extends StatefulWidget {
-  const LibraryPage({super.key, required this.repo});
+  const LibraryPage({super.key, required this.repo, required this.engine});
   final LibraryRepository repo;
+  final WebAudioEngine engine;
 
   @override
   State<LibraryPage> createState() => _LibraryPageState();
@@ -49,8 +51,11 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Future<void> _open(Track t) async {
+    widget.engine.resume(); // débloque l'AudioContext iOS pendant le geste
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => PlayerPage(track: t, repo: widget.repo)),
+      MaterialPageRoute(
+        builder: (_) => PlayerPage(track: t, repo: widget.repo, engine: widget.engine),
+      ),
     );
     if (mounted) _reload(); // au retour : la durée/les réglages ont pu changer
   }
@@ -63,6 +68,14 @@ class _LibraryPageState extends State<LibraryPage> {
   String _fmt(int ms) {
     final d = Duration(milliseconds: ms);
     return '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+  }
+
+  String _subtitle(Track t) {
+    final parts = <String>[_fmt(t.durationMs)];
+    final p = t.settings.pitchSemitones.round();
+    if (p != 0) parts.add('${p > 0 ? '+' : ''}$p ½-tons');
+    if (t.settings.speed != 1.0) parts.add('${t.settings.speed}×');
+    return parts.join(' · ');
   }
 
   @override
@@ -118,8 +131,14 @@ class _LibraryPageState extends State<LibraryPage> {
                 onDismissed: (_) => _delete(t),
                 child: ListTile(
                   leading: const Icon(Icons.music_note),
-                  title: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: Text(_fmt(t.durationMs)),
+                  title: Hero(
+                    tag: 'track-title-${t.id}',
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                  subtitle: Text(_subtitle(t)),
                   onTap: () => _open(t),
                 ),
               );

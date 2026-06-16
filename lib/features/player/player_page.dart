@@ -6,16 +6,16 @@ import '../../core/library/track.dart';
 import 'player_controller.dart';
 
 class PlayerPage extends StatefulWidget {
-  const PlayerPage({super.key, required this.track, required this.repo});
+  const PlayerPage({super.key, required this.track, required this.repo, required this.engine});
   final Track track;
   final LibraryRepository repo;
+  final WebAudioEngine engine;
 
   @override
   State<PlayerPage> createState() => _PlayerPageState();
 }
 
 class _PlayerPageState extends State<PlayerPage> {
-  late final WebAudioEngine _engine;
   late final PlayerController _c;
   StreamSubscription<Duration>? _posSub;
   Duration _position = Duration.zero;
@@ -26,21 +26,20 @@ class _PlayerPageState extends State<PlayerPage> {
   @override
   void initState() {
     super.initState();
-    _engine = WebAudioEngine();
-    _c = PlayerController(_engine, widget.repo, widget.track);
-    _posSub = _engine.position.listen((p) {
+    _c = PlayerController(widget.engine, widget.repo, widget.track);
+    _posSub = widget.engine.position.listen((p) {
       if (!_scrubbing) setState(() => _position = p);
     });
-    _engine.init().then((_) {
-      if (mounted) _loadTrack();
-    });
+    _loadAndPlay();
   }
 
-  Future<void> _loadTrack() async {
+  Future<void> _loadAndPlay() async {
+    if (mounted) setState(() => _loading = true);
     try {
       final bytes = await widget.repo.loadAudio(widget.track.id);
-      await _engine.load(bytes).timeout(const Duration(seconds: 20));
+      await widget.engine.load(bytes).timeout(const Duration(seconds: 20));
       await _c.applySettings();
+      await _c.play();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -56,7 +55,7 @@ class _PlayerPageState extends State<PlayerPage> {
   void dispose() {
     _posSub?.cancel();
     _c.dispose();
-    _engine.dispose();
+    widget.engine.pause(); // stoppe la lecture en quittant (moteur partagé, pas disposé)
     super.dispose();
   }
 
@@ -71,7 +70,15 @@ class _PlayerPageState extends State<PlayerPage> {
         .clamp(0, totalMs == 0 ? 1 : totalMs);
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.track.name)),
+      appBar: AppBar(
+        title: Hero(
+          tag: 'track-title-${widget.track.id}',
+          child: Material(
+            type: MaterialType.transparency,
+            child: Text(widget.track.name),
+          ),
+        ),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : AnimatedBuilder(

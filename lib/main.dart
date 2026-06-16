@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:idb_shim/idb_browser.dart';
 
+import 'core/audio/web_audio_engine.dart';
 import 'core/io/persistent_storage.dart';
 import 'core/library/idb_library_repository.dart';
 import 'core/library/library_repository.dart';
@@ -9,12 +10,15 @@ import 'features/library/library_page.dart';
 void main() {
   final repo = IdbLibraryRepository(idbFactoryBrowser);
   requestPersistentStorage();
-  runApp(WoodshedApp(repo: repo));
+  final engine = WebAudioEngine();
+  engine.init(); // fire-and-forget : initialise le contexte audio + worklet en fond
+  runApp(WoodshedApp(repo: repo, engine: engine));
 }
 
 class WoodshedApp extends StatelessWidget {
-  const WoodshedApp({super.key, required this.repo});
+  const WoodshedApp({super.key, required this.repo, required this.engine});
   final LibraryRepository repo;
+  final WebAudioEngine engine;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -22,6 +26,6 @@ class WoodshedApp extends StatelessWidget {
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         ),
-        home: LibraryPage(repo: repo),
+        home: LibraryPage(repo: repo, engine: engine),
       );
 }
