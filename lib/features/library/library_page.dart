@@ -73,7 +73,7 @@ class _LibraryPageState extends State<LibraryPage> {
   String _subtitle(Track t) {
     final parts = <String>[_fmt(t.durationMs)];
     final p = t.settings.pitchSemitones.round();
-    if (p != 0) parts.add('${p > 0 ? '+' : ''}$p ½-tons');
+    if (p != 0) parts.add('${p > 0 ? '+' : ''}$p demi-tons');
     if (t.settings.speed != 1.0) parts.add('${t.settings.speed}×');
     return parts.join(' · ');
   }

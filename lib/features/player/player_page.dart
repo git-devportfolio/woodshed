@@ -28,7 +28,7 @@ class _PlayerPageState extends State<PlayerPage> {
     super.initState();
     _c = PlayerController(widget.engine, widget.repo, widget.track);
     _posSub = widget.engine.position.listen((p) {
-      if (!_scrubbing) setState(() => _position = p);
+      if (!_scrubbing && !_loading) setState(() => _position = p);
     });
     _loadAndPlay();
   }
@@ -38,6 +38,12 @@ class _PlayerPageState extends State<PlayerPage> {
     try {
       final bytes = await widget.repo.loadAudio(widget.track.id);
       await widget.engine.load(bytes).timeout(const Duration(seconds: 20));
+      if (mounted) {
+        setState(() {
+          _position = Duration.zero;
+          _scrubbing = false;
+        });
+      }
       await _c.applySettings();
       await _c.play();
     } catch (e) {
@@ -55,7 +61,7 @@ class _PlayerPageState extends State<PlayerPage> {
   void dispose() {
     _posSub?.cancel();
     _c.dispose();
-    widget.engine.pause(); // stoppe la lecture en quittant (moteur partagé, pas disposé)
+    widget.engine.pause(); // stoppe la lecture (effet synchrone ; moteur partagé NON disposé ici)
     super.dispose();
   }
 
