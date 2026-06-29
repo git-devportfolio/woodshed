@@ -157,4 +157,40 @@ void main() {
     expect(engine.loopB, const Duration(seconds: 20));
     expect(engine.loopEnabled, true);
   });
+
+  test('restart va à loopA quand la boucle est active', () async {
+    final c = PlayerController(FakeEngine(), FakeRepo(), _track());
+    await c.setLoopA(const Duration(seconds: 30));
+    await c.toggleLoop();
+    await c.restart();
+    expect(c.lastSeekTarget, const Duration(seconds: 30));
+  });
+
+  test('restart va à 0 sans boucle', () async {
+    final c = PlayerController(FakeEngine(), FakeRepo(), _track());
+    await c.restart();
+    expect(c.lastSeekTarget, Duration.zero);
+  });
+
+  test('play se cale sur loopA si boucle active et position hors [A,B]', () async {
+    final c = PlayerController(FakeEngine(), FakeRepo(), _track());
+    await c.setLoopA(const Duration(seconds: 20));
+    await c.setLoopB(const Duration(seconds: 40));
+    await c.toggleLoop();
+    c.currentPosition = Duration.zero;
+    await c.play();
+    expect(c.lastSeekTarget, const Duration(seconds: 20));
+  });
+
+  test('resetLoop remet A=0 et B=durée', () async {
+    final engine = FakeEngine();
+    final c = PlayerController(engine, FakeRepo(), _track());
+    await c.setLoopA(const Duration(seconds: 30));
+    await c.setLoopB(const Duration(seconds: 60));
+    await c.resetLoop();
+    expect(c.loopA, Duration.zero);
+    expect(c.loopB, const Duration(milliseconds: 240000));
+    expect(engine.loopA, Duration.zero);
+    expect(engine.loopB, const Duration(milliseconds: 240000));
+  });
 }

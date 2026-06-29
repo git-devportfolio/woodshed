@@ -29,6 +29,9 @@ class PlayerController extends ChangeNotifier {
   @visibleForTesting
   Duration lastSeekTarget = Duration.zero;
 
+  /// Position courante du lecteur (mise à jour par seek et par le flux position).
+  Duration currentPosition = Duration.zero;
+
   Timer? _saveTimer;
 
   double get pitch => track.settings.pitchSemitones;
@@ -83,6 +86,14 @@ class PlayerController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> resetLoop() async {
+    track.settings.loopA = null;
+    track.settings.loopB = null;
+    await _engine.setLoopRange(loopA, loopB); // 0 .. durée
+    _scheduleSave();
+    notifyListeners();
+  }
+
   Future<void> forward10s(Duration current) async {
     final target = current + const Duration(seconds: 10);
     await seek(target > _duration ? _duration : target);
@@ -113,6 +124,9 @@ class PlayerController extends ChangeNotifier {
   }
 
   Future<void> play() async {
+    if (loopEnabled && (currentPosition < loopA || currentPosition >= loopB)) {
+      await seek(loopA);
+    }
     await _engine.play();
     if (_disposed) return;
     isPlaying = true;
@@ -126,10 +140,11 @@ class PlayerController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> restart() async => seek(Duration.zero);
+  Future<void> restart() async => seek(loopEnabled ? loopA : Duration.zero);
 
   Future<void> seek(Duration position) async {
     lastSeekTarget = position;
+    currentPosition = position;
     await _engine.seek(position);
   }
 

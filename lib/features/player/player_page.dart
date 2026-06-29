@@ -28,6 +28,7 @@ class _PlayerPageState extends State<PlayerPage> {
     super.initState();
     _c = PlayerController(widget.engine, widget.repo, widget.track);
     _posSub = widget.engine.position.listen((p) {
+      _c.currentPosition = p;
       if (!_loading) setState(() => _position = p);
     });
     _loadAndPlay();
@@ -116,6 +117,11 @@ class _PlayerPageState extends State<PlayerPage> {
                           icon: Icon(_c.loopEnabled ? Icons.repeat_on : Icons.repeat),
                           label: Text(_c.loopEnabled ? 'Boucle A–B : ON' : 'Boucle A–B'),
                         ),
+                        IconButton(
+                          tooltip: 'Réinitialiser la boucle',
+                          onPressed: _c.resetLoop,
+                          icon: const Icon(Icons.settings_backup_restore),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -144,7 +150,10 @@ class _PlayerPageState extends State<PlayerPage> {
                         IconButton(
                           iconSize: 32,
                           tooltip: 'Redémarrer',
-                          onPressed: _c.restart,
+                          onPressed: () {
+                            _c.restart();
+                            setState(() => _position = _c.loopEnabled ? _c.loopA : Duration.zero);
+                          },
                           icon: const Icon(Icons.replay),
                         ),
                       ],
@@ -163,7 +172,7 @@ class _PlayerPageState extends State<PlayerPage> {
                     const Text('Vitesse'),
                     Wrap(
                       spacing: 8,
-                      children: [0.5, 0.75, 0.8, 0.9, 1.0]
+                      children: [0.5, 0.75, 0.85, 0.95, 1.0]
                           .map((r) => ChoiceChip(
                                 label: Text('${r}x'),
                                 selected: _c.speed == r,
