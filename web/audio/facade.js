@@ -8,6 +8,9 @@
   let backendId = 'rubberband';
   let positionCb = null;
   let pollTimer = null;
+  let loopAsec = 0;          // borne A (s) ; 0 par défaut
+  let loopBsec = 0;          // borne B (s) ; 0 = fin du buffer (boucle morceau entier)
+  let loopOn = false;        // bouclage actif
 
   const backends = {};       // rempli par les fichiers backend-*.js
   window.woodshedAudioRegisterBackend = (id, factory) => { backends[id] = factory; };
@@ -55,7 +58,8 @@
     seek(seconds) { backend && backend.seek(seconds); },
     setTempo(ratio) { backend && backend.setTempo(ratio); },
     setPitchSemitones(n) { backend && backend.setPitchSemitones(n); },
-    setLoop(loop) { backend && backend.setLoop(loop); },
+    setLoop(on) { loopOn = on; backend && backend.setLoop(on); },
+    setLoopRange(aSec, bSec) { loopAsec = aSec; loopBsec = bSec; backend && backend.setLoopRange(aSec, bSec); },
     setVolume(v) { if (masterGain) masterGain.gain.value = v; },
     async setEngine(id) {
       const wasPlaying = backend ? backend.isPlaying() : false;
@@ -71,6 +75,8 @@
       if (decoded) await backend.load(decoded);
       backend.setTempo(tempo);
       backend.setPitchSemitones(pitch);
+      backend.setLoopRange(loopAsec, loopBsec);
+      backend.setLoop(loopOn);
       backend.seek(pos);
       if (wasPlaying) backend.play();
     },

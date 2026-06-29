@@ -20,7 +20,7 @@ window.woodshedAudioRegisterBackend('soundtouch', async (ctx, destination) => {
   let buffer = null, src = null, playing = false;
   let startedAt = 0;               // ctx.currentTime au démarrage de la source
   let offset = 0;                  // position (s, temps-morceau) au démarrage
-  let loop = false;
+  let loopStartSec = 0, loopEndSec = 0, loopOn = false;
   let speed = 1.0;                 // ratio de vitesse demandé (0.5 / 0.75 / 1.0)
   let pitchSemi = 0;               // transposition demandée (demi-tons)
 
@@ -48,14 +48,16 @@ window.woodshedAudioRegisterBackend('soundtouch', async (ctx, destination) => {
   function curPos() {
     if (!buffer) return 0;
     const p = playing ? offset + (ctx.currentTime - startedAt) * speed : offset;
-    return loop && buffer.duration > 0 ? p % buffer.duration : Math.min(p, buffer.duration);
+    return loopOn && buffer.duration > 0 ? p % buffer.duration : Math.min(p, buffer.duration);
   }
   function startFrom(pos) {
     stopSrc();
     ensureNode();
     src = ctx.createBufferSource();
     src.buffer = buffer;
-    src.loop = loop;
+    src.loop = loopOn;
+    src.loopStart = loopStartSec;
+    src.loopEnd = loopEndSec;
     src.connect(node);             // source -> worklet (pitch) -> destination
     offset = pos; startedAt = ctx.currentTime;
     applyParams();                 // doit suivre la création de src (playbackRate)
@@ -74,7 +76,8 @@ window.woodshedAudioRegisterBackend('soundtouch', async (ctx, destination) => {
       applyParams();
     },
     setPitchSemitones(n) { pitchSemi = n; applyParams(); },
-    setLoop(l) { loop = l; if (src) src.loop = l; },
+    setLoop(on) { loopOn = on; if (src) src.loop = on; },
+    setLoopRange(a, b) { loopStartSec = a; loopEndSec = b; if (src) { src.loopStart = a; src.loopEnd = b; } },
     isPlaying() { return playing; },
     positionSeconds() { return curPos(); },
     tempo() { return speed; },
