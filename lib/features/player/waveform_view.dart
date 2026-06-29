@@ -67,7 +67,7 @@ class _WaveformViewState extends State<WaveformView> {
             } else if ((x - bx).abs() <= touch) {
               _dragging = _Handle.b;
             } else {
-              _dragging = _Handle.none;
+              _dragging = _Handle.none; // drag hors poignée : ignoré (le seek se fait au tap)
             }
           },
           onHorizontalDragUpdate: (d) {
@@ -137,7 +137,7 @@ class _WaveformPainter extends CustomPainter {
     final bx = _x(loopB, size.width);
     canvas.drawRect(
       Rect.fromLTRB(ax, 0, bx, size.height),
-      Paint()..color = loopColor,
+      Paint()..color = loopColor.withValues(alpha: loopColor.a * (loopEnabled ? 1.0 : 0.3)),
     );
 
     // Pics
@@ -177,5 +177,6 @@ class _WaveformPainter extends CustomPainter {
       old.loopA != loopA ||
       old.loopB != loopB ||
       old.loopEnabled != loopEnabled ||
+      old.duration != duration ||
       !identical(old.peaks, peaks);
 }
