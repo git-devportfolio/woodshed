@@ -4,6 +4,7 @@ import '../../core/audio/web_audio_engine.dart';
 import '../../core/library/library_repository.dart';
 import '../../core/library/track.dart';
 import 'player_controller.dart';
+import 'waveform_view.dart';
 
 class PlayerPage extends StatefulWidget {
   const PlayerPage({super.key, required this.track, required this.repo, required this.engine});
@@ -20,15 +21,14 @@ class _PlayerPageState extends State<PlayerPage> {
   StreamSubscription<Duration>? _posSub;
   Duration _position = Duration.zero;
   bool _loading = true;
-  bool _scrubbing = false;
-  double _scrubValue = 0;
+  List<double> _peaks = const [];
 
   @override
   void initState() {
     super.initState();
     _c = PlayerController(widget.engine, widget.repo, widget.track);
     _posSub = widget.engine.position.listen((p) {
-      if (!_scrubbing && !_loading) setState(() => _position = p);
+      if (!_loading) setState(() => _position = p);
     });
     _loadAndPlay();
   }
@@ -41,7 +41,7 @@ class _PlayerPageState extends State<PlayerPage> {
       if (mounted) {
         setState(() {
           _position = Duration.zero;
-          _scrubbing = false;
+          _peaks = widget.engine.waveformPeaks;
         });
       }
       await _c.applySettings();
@@ -72,8 +72,7 @@ class _PlayerPageState extends State<PlayerPage> {
   Widget build(BuildContext context) {
     final total = Duration(milliseconds: widget.track.durationMs);
     final totalMs = total.inMilliseconds.toDouble();
-    final posMs = (_scrubbing ? _scrubValue : _position.inMilliseconds.toDouble())
-        .clamp(0, totalMs == 0 ? 1 : totalMs);
+    final posMs = _position.inMilliseconds.toDouble().clamp(0, totalMs == 0 ? 1 : totalMs);
 
     return Scaffold(
       appBar: AppBar(
@@ -94,24 +93,32 @@ class _PlayerPageState extends State<PlayerPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Slider(
-                      value: posMs.toDouble(),
-                      max: totalMs == 0 ? 1 : totalMs,
-                      onChangeStart: (_) => setState(() => _scrubbing = true),
-                      onChanged: (v) => setState(() => _scrubValue = v),
-                      onChangeEnd: (v) {
-                        _c.seek(Duration(milliseconds: v.round()));
-                        setState(() {
-                          _position = Duration(milliseconds: v.round());
-                          _scrubbing = false;
-                        });
+                    WaveformView(
+                      peaks: _peaks,
+                      duration: total,
+                      position: Duration(milliseconds: posMs.round()),
+                      loopA: _c.loopA,
+                      loopB: _c.loopB,
+                      loopEnabled: _c.loopEnabled,
+                      onSeek: (t) {
+                        _c.seek(t);
+                        setState(() => _position = t);
                       },
+                      onSetA: (t) => _c.setLoopA(t),
+                      onSetB: (t) => _c.setLoopB(t),
                     ),
                     Text('${_fmt(Duration(milliseconds: posMs.round()))} / ${_fmt(total)}'),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        IconButton(
+                          iconSize: 28,
+                          tooltip: _c.loopEnabled ? 'Boucle activée' : 'Boucle désactivée',
+                          isSelected: _c.loopEnabled,
+                          onPressed: _c.toggleLoop,
+                          icon: const Icon(Icons.repeat),
+                        ),
                         IconButton(
                           iconSize: 32,
                           tooltip: '−10 s',
@@ -130,6 +137,12 @@ class _PlayerPageState extends State<PlayerPage> {
                           tooltip: 'Redémarrer',
                           onPressed: _c.restart,
                           icon: const Icon(Icons.replay),
+                        ),
+                        IconButton(
+                          iconSize: 32,
+                          tooltip: '+10 s',
+                          onPressed: () => _c.forward10s(_position),
+                          icon: const Icon(Icons.forward_10),
                         ),
                       ],
                     ),
