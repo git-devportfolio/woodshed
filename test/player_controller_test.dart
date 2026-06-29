@@ -9,6 +9,8 @@ import 'package:woodshed/features/player/player_controller.dart';
 
 class FakeEngine implements AudioEngine {
   double pitch = 0, speed = 1, volume = 1;
+  Duration? loopA, loopB;
+  bool loopEnabled = false;
   final _pos = StreamController<Duration>.broadcast();
   @override
   Future<void> setPitch(double s) async => pitch = s;
@@ -25,7 +27,7 @@ class FakeEngine implements AudioEngine {
   @override
   Future<void> seek(Duration p) async {}
   @override
-  Future<void> setLoop(bool l) async {}
+  Future<void> setLoop(bool on) async { loopEnabled = on; }
   @override
   Future<void> setEngine(EngineKind k) async {}
   @override
@@ -37,7 +39,7 @@ class FakeEngine implements AudioEngine {
   @override
   Future<void> dispose() async => _pos.close();
   @override
-  Future<void> setLoopRange(Duration a, Duration b) async {}
+  Future<void> setLoopRange(Duration a, Duration b) async { loopA = a; loopB = b; }
 }
 
 class FakeRepo implements LibraryRepository {
@@ -107,5 +109,52 @@ void main() {
     expect(c.lastSeekTarget, Duration.zero); // 4s - 10s borné à 0
     await c.rewind10s(const Duration(seconds: 30));
     expect(c.lastSeekTarget, const Duration(seconds: 20));
+  });
+
+  test('setLoopA borne dans [0, B - 0.2s] et délègue au moteur', () async {
+    final engine = FakeEngine();
+    final c = PlayerController(engine, FakeRepo(), _track());
+    await c.setLoopB(const Duration(seconds: 40));
+    await c.setLoopA(const Duration(seconds: 30));
+    expect(c.loopA, const Duration(seconds: 30));
+    expect(engine.loopA, const Duration(seconds: 30));
+    await c.setLoopA(const Duration(seconds: -5)); // sous 0
+    expect(c.loopA, Duration.zero);
+    await c.setLoopA(const Duration(seconds: 100)); // au-delà de B-0.2
+    expect(c.loopA, const Duration(seconds: 40) - const Duration(milliseconds: 200));
+  });
+
+  test('setLoopB borne dans [A + 0.2s, durée]', () async {
+    final engine = FakeEngine();
+    final c = PlayerController(engine, FakeRepo(), _track());
+    await c.setLoopB(const Duration(minutes: 10)); // au-delà de la durée
+    expect(c.loopB, const Duration(milliseconds: 240000));
+  });
+
+  test('toggleLoop bascule et délègue', () async {
+    final engine = FakeEngine();
+    final c = PlayerController(engine, FakeRepo(), _track());
+    await c.toggleLoop();
+    expect(c.loopEnabled, true);
+    expect(engine.loopEnabled, true);
+  });
+
+  test('forward10s borné à la durée', () async {
+    final c = PlayerController(FakeEngine(), FakeRepo(), _track());
+    await c.forward10s(const Duration(seconds: 100));
+    expect(c.lastSeekTarget, const Duration(seconds: 110));
+    await c.forward10s(const Duration(seconds: 238));
+    expect(c.lastSeekTarget, const Duration(milliseconds: 240000)); // borné
+  });
+
+  test('applySettings réapplique la boucle', () async {
+    final engine = FakeEngine();
+    final t = _track();
+    t.settings.loopA = 10; t.settings.loopB = 20; t.settings.loopEnabled = true;
+    final c = PlayerController(engine, FakeRepo(), t);
+    await c.applySettings();
+    expect(engine.loopA, const Duration(seconds: 10));
+    expect(engine.loopB, const Duration(seconds: 20));
+    expect(engine.loopEnabled, true);
   });
 }
