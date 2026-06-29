@@ -48,7 +48,14 @@ window.woodshedAudioRegisterBackend('soundtouch', async (ctx, destination) => {
   function curPos() {
     if (!buffer) return 0;
     const p = playing ? offset + (ctx.currentTime - startedAt) * speed : offset;
-    return loopOn && buffer.duration > 0 ? p % buffer.duration : Math.min(p, buffer.duration);
+    // Boucle A/B active : la position se replie dans [loopStartSec, effEnd] et
+    // revient à loopStartSec en atteignant la fin de boucle (comme l'audio).
+    const effEnd = loopEndSec > 0 ? loopEndSec : buffer.duration;
+    if (loopOn && effEnd > loopStartSec) {
+      if (p <= effEnd) return Math.min(p, buffer.duration);
+      return loopStartSec + ((p - effEnd) % (effEnd - loopStartSec));
+    }
+    return Math.min(p, buffer.duration);
   }
   function startFrom(pos) {
     stopSrc();
