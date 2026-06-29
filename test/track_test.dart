@@ -45,4 +45,22 @@ void main() {
   test('Track.fromJson lève une FormatException sur JSON invalide', () {
     expect(() => Track.fromJson({'name': 'x'}), throwsFormatException);
   });
+
+  test('TrackSettings round-trip avec boucle', () {
+    final s = TrackSettings(
+      pitchSemitones: 2, speed: 0.75, volume: 0.5,
+      loopA: 12.5, loopB: 40.0, loopEnabled: true,
+    );
+    final back = TrackSettings.fromJson(s.toJson());
+    expect(back.loopA, 12.5);
+    expect(back.loopB, 40.0);
+    expect(back.loopEnabled, true);
+  });
+
+  test('TrackSettings.fromJson sans champs boucle (rétrocompat)', () {
+    final s = TrackSettings.fromJson({'pitchSemitones': 0, 'speed': 1.0, 'volume': 1.0});
+    expect(s.loopA, isNull);
+    expect(s.loopB, isNull);
+    expect(s.loopEnabled, false);
+  });
 }

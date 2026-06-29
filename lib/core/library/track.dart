@@ -1,21 +1,37 @@
-/// Réglages de pratique d'un morceau. Extensible (recevra loopA/loopB plus tard).
+/// Réglages de pratique d'un morceau.
 class TrackSettings {
-  TrackSettings({this.pitchSemitones = 0, this.speed = 1.0, this.volume = 1.0});
+  TrackSettings({
+    this.pitchSemitones = 0,
+    this.speed = 1.0,
+    this.volume = 1.0,
+    this.loopA,
+    this.loopB,
+    this.loopEnabled = false,
+  });
 
   double pitchSemitones;
   double speed;
   double volume;
+  double? loopA; // secondes, null = non défini (→ 0)
+  double? loopB; // secondes, null = non défini (→ durée)
+  bool loopEnabled;
 
   Map<String, dynamic> toJson() => {
         'pitchSemitones': pitchSemitones,
         'speed': speed,
         'volume': volume,
+        'loopA': loopA,
+        'loopB': loopB,
+        'loopEnabled': loopEnabled,
       };
 
   factory TrackSettings.fromJson(Map json) => TrackSettings(
         pitchSemitones: (json['pitchSemitones'] as num?)?.toDouble() ?? 0,
         speed: (json['speed'] as num?)?.toDouble() ?? 1.0,
         volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
+        loopA: (json['loopA'] as num?)?.toDouble(),
+        loopB: (json['loopB'] as num?)?.toDouble(),
+        loopEnabled: (json['loopEnabled'] as bool?) ?? false,
       );
 }
 
