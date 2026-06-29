@@ -20,6 +20,7 @@ extension type _Facade._(JSObject _) implements JSObject {
   external void setLoopRange(double aSec, double bSec);
   external JSPromise<JSAny?> setEngine(String id);
   external int getGlitchCount();
+  external JSArray<JSNumber> getPeaks();
   external double get duration;
   external void setVolume(double v);
   external void onPosition(JSFunction cb);
@@ -86,6 +87,10 @@ class WebAudioEngine implements AudioEngine {
   Duration get duration => _duration;
   @override
   int get glitchCount => _facade.getGlitchCount();
+
+  /// Pics de waveform normalisés [0,1] du morceau courant (≈800 points).
+  List<double> get waveformPeaks =>
+      _facade.getPeaks().toDart.map((e) => e.toDartDouble).toList();
 
   @override
   Future<void> dispose() async {

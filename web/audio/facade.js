@@ -11,9 +11,33 @@
   let loopAsec = 0;          // borne A (s) ; 0 par défaut
   let loopBsec = 0;          // borne B (s) ; 0 = fin du buffer (boucle morceau entier)
   let loopOn = false;        // bouclage actif
+  let peaks = [];            // pics de waveform normalisés [0,1] (≈800 points)
 
   const backends = {};       // rempli par les fichiers backend-*.js
   window.woodshedAudioRegisterBackend = (id, factory) => { backends[id] = factory; };
+
+  function computePeaks(buf, buckets) {
+    const len = buf.length;
+    const ch0 = buf.getChannelData(0);
+    const ch1 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : null;
+    const out = new Array(buckets).fill(0);
+    const block = Math.max(1, Math.floor(len / buckets));
+    let maxAll = 1e-6;
+    for (let b = 0; b < buckets; b++) {
+      let m = 0;
+      const start = b * block;
+      const end = Math.min(len, start + block);
+      for (let i = start; i < end; i++) {
+        let v = Math.abs(ch0[i]);
+        if (ch1) { const v1 = Math.abs(ch1[i]); if (v1 > v) v = v1; }
+        if (v > m) m = v;
+      }
+      out[b] = m;
+      if (m > maxAll) maxAll = m;
+    }
+    for (let b = 0; b < buckets; b++) out[b] = out[b] / maxAll;
+    return out;
+  }
 
   function startPolling() {
     stopPolling();
@@ -45,6 +69,7 @@
       const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
       const decodeCtx = new OfflineCtx(2, 1, ctx.sampleRate);
       decoded = await decodeCtx.decodeAudioData(arrayBuffer);
+      peaks = computePeaks(decoded, 800);
       console.log('[woodshedAudio] load: décodé, durée=' + decoded.duration.toFixed(1) + 's');
       if (backend) {
         await backend.load(decoded);
@@ -81,6 +106,7 @@
       if (wasPlaying) backend.play();
     },
     getGlitchCount() { return backend ? backend.glitchCount() : 0; },
+    getPeaks() { return peaks; },
     get duration() { return decoded ? decoded.duration : 0; },
     onPosition(cb) { positionCb = cb; },
     // À appeler dans un geste utilisateur (iOS) pour sortir l'AudioContext de l'état suspendu.
