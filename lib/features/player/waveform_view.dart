@@ -55,7 +55,7 @@ class _WaveformViewState extends State<WaveformView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        const touch = 24.0; // tolérance tactile autour d'une poignée
+        const touch = 40.0; // tolérance tactile autour d'une poignée (doigt)
         return GestureDetector(
           onTapDown: (d) => widget.onSeek(_xToTime(d.localPosition.dx, width)),
           onHorizontalDragStart: (d) {
@@ -90,7 +90,7 @@ class _WaveformViewState extends State<WaveformView> {
               loopB: widget.loopB,
               loopEnabled: widget.loopEnabled,
               waveColor: scheme.primary.withValues(alpha: 0.6),
-              loopColor: scheme.tertiary.withValues(alpha: 0.25),
+              loopColor: scheme.tertiary.withValues(alpha: 0.30),
               handleColor: scheme.tertiary,
               playheadColor: scheme.error,
             ),
@@ -137,7 +137,7 @@ class _WaveformPainter extends CustomPainter {
     final bx = _x(loopB, size.width);
     canvas.drawRect(
       Rect.fromLTRB(ax, 0, bx, size.height),
-      Paint()..color = loopColor.withValues(alpha: loopColor.a * (loopEnabled ? 1.0 : 0.3)),
+      Paint()..color = loopColor.withValues(alpha: loopColor.a * (loopEnabled ? 1.0 : 0.5)),
     );
 
     // Pics
@@ -157,8 +157,8 @@ class _WaveformPainter extends CustomPainter {
       ..strokeWidth = loopEnabled ? 3 : 2;
     canvas.drawLine(Offset(ax, 0), Offset(ax, size.height), handle);
     canvas.drawLine(Offset(bx, 0), Offset(bx, size.height), handle);
-    canvas.drawCircle(Offset(ax, 8), 6, handle);
-    canvas.drawCircle(Offset(bx, size.height - 8), 6, handle);
+    canvas.drawCircle(Offset(ax, 10), 10, handle);
+    canvas.drawCircle(Offset(bx, size.height - 10), 10, handle);
 
     // Tête de lecture
     final px = _x(position, size.width);

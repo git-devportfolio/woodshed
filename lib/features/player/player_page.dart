@@ -107,18 +107,21 @@ class _PlayerPageState extends State<PlayerPage> {
                       onSetA: (t) => _c.setLoopA(t),
                       onSetB: (t) => _c.setLoopB(t),
                     ),
-                    Text('${_fmt(Duration(milliseconds: posMs.round()))} / ${_fmt(total)}'),
+                    Row(
+                      children: [
+                        Text('${_fmt(Duration(milliseconds: posMs.round()))} / ${_fmt(total)}'),
+                        const Spacer(),
+                        FilledButton.tonalIcon(
+                          onPressed: _c.toggleLoop,
+                          icon: Icon(_c.loopEnabled ? Icons.repeat_on : Icons.repeat),
+                          label: Text(_c.loopEnabled ? 'Boucle A–B : ON' : 'Boucle A–B'),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        IconButton(
-                          iconSize: 28,
-                          tooltip: _c.loopEnabled ? 'Boucle activée' : 'Boucle désactivée',
-                          isSelected: _c.loopEnabled,
-                          onPressed: _c.toggleLoop,
-                          icon: const Icon(Icons.repeat),
-                        ),
                         IconButton(
                           iconSize: 32,
                           tooltip: '−10 s',
@@ -134,15 +137,15 @@ class _PlayerPageState extends State<PlayerPage> {
                         ),
                         IconButton(
                           iconSize: 32,
-                          tooltip: 'Redémarrer',
-                          onPressed: _c.restart,
-                          icon: const Icon(Icons.replay),
-                        ),
-                        IconButton(
-                          iconSize: 32,
                           tooltip: '+10 s',
                           onPressed: () => _c.forward10s(_position),
                           icon: const Icon(Icons.forward_10),
+                        ),
+                        IconButton(
+                          iconSize: 32,
+                          tooltip: 'Redémarrer',
+                          onPressed: _c.restart,
+                          icon: const Icon(Icons.replay),
                         ),
                       ],
                     ),
@@ -160,7 +163,7 @@ class _PlayerPageState extends State<PlayerPage> {
                     const Text('Vitesse'),
                     Wrap(
                       spacing: 8,
-                      children: [0.5, 0.75, 1.0]
+                      children: [0.5, 0.75, 0.8, 0.9, 1.0]
                           .map((r) => ChoiceChip(
                                 label: Text('${r}x'),
                                 selected: _c.speed == r,
