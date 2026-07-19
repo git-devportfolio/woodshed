@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/audio/web_audio_engine.dart';
 import '../../core/library/library_repository.dart';
 import '../../core/library/track.dart';
+import 'export_sheet.dart';
 import 'player_controller.dart';
 import 'waveform_view.dart';
 
@@ -84,6 +85,23 @@ class _PlayerPageState extends State<PlayerPage> {
             child: Text(widget.track.name),
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Exporter / Partager',
+            icon: const Icon(Icons.ios_share),
+            onPressed: _loading
+                ? null
+                : () => showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) => ExportSheet(
+                        engine: widget.engine,
+                        controller: _c,
+                        track: widget.track,
+                      ),
+                    ),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
