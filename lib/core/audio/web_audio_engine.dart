@@ -26,6 +26,8 @@ extension type _Facade._(JSObject _) implements JSObject {
   external void onPosition(JSFunction cb);
   external void resume();
   external void dispose();
+  external JSPromise<JSUint8Array> renderMp3(
+      double fromSec, double toSec, double pitchSemitones, double speed);
 }
 
 /// Implémentation [AudioEngine] sur le web, proxy vers la façade `window.woodshedAudio`.
@@ -103,4 +105,18 @@ class WebAudioEngine implements AudioEngine {
   @override
   Future<void> setLoopRange(Duration a, Duration b) async =>
       _facade.setLoopRange(a.inMilliseconds / 1000.0, b.inMilliseconds / 1000.0);
+
+  /// Rend l'audio traité (pitch/vitesse courants) entre [from] et [to] et renvoie un MP3.
+  Future<Uint8List> exportMp3({
+    required Duration from,
+    required Duration to,
+    required double pitchSemitones,
+    required double speed,
+  }) async {
+    final result = await _facade
+        .renderMp3(from.inMilliseconds / 1000.0, to.inMilliseconds / 1000.0,
+            pitchSemitones, speed)
+        .toDart;
+    return result.toDart;
+  }
 }

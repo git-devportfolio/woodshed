@@ -47,6 +47,37 @@
   }
   function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
+  // --- Encodage MP3 (lamejs, LGPL) : PCM float32 -> octets MP3 192 kbps. ---
+  // Le volume N'est PAS appliqué ici : on encode l'audio traité (pitch + vitesse) tel quel.
+  function floatToInt16(f32) {
+    const i16 = new Int16Array(f32.length);
+    for (let i = 0; i < f32.length; i++) {
+      let s = Math.max(-1, Math.min(1, f32[i]));
+      i16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+    }
+    return i16;
+  }
+  function encodeMp3(buf) {
+    const sr = buf.sampleRate;
+    const left = floatToInt16(buf.getChannelData(0));
+    const right = buf.numberOfChannels > 1 ? floatToInt16(buf.getChannelData(1)) : left;
+    const enc = new window.lamejs.Mp3Encoder(2, sr, 192);
+    const block = 1152;
+    const chunks = [];
+    for (let i = 0; i < left.length; i += block) {
+      const c = enc.encodeBuffer(left.subarray(i, i + block), right.subarray(i, i + block));
+      if (c.length > 0) chunks.push(c);
+    }
+    const end = enc.flush();
+    if (end.length > 0) chunks.push(end);
+    let len = 0;
+    for (const c of chunks) len += c.length;
+    const out = new Uint8Array(len);
+    let o = 0;
+    for (const c of chunks) { out.set(c, o); o += c.length; }
+    return out;
+  }
+
   window.woodshedAudio = {
     async init() {
       if (!ctx) {
@@ -111,6 +142,48 @@
     onPosition(cb) { positionCb = cb; },
     // À appeler dans un geste utilisateur (iOS) pour sortir l'AudioContext de l'état suspendu.
     resume() { if (ctx && ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} } },
+    // Rend hors-ligne le segment [fromSec, toSec] avec pitch/vitesse, puis encode en MP3.
+    // Réplique EXACTEMENT le graphe de lecture du backend 'rubberband' (cf. backend-rubberband.js)
+    // pour que le MP3 sonne comme la lecture : source.playbackRate = vitesse, worklet tempo = 1.0,
+    // worklet pitch = 2^(demi-tons/12) / vitesse (compensation du resampling). Volume NON appliqué.
+    // Réutilise le buffer `decoded` déjà en mémoire (pas de re-décodage).
+    async renderMp3(fromSec, toSec, pitchSemitones, speed) {
+      if (!decoded) throw new Error('Aucun morceau chargé');
+      const sr = (ctx && ctx.sampleRate) || 44100;
+      const span = toSec - fromSec;
+      const outSec = speed > 0 ? span / speed : span;
+      const frames = Math.max(1, Math.ceil(outSec * sr));
+      const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const off = new OfflineCtx(2, frames, sr);
+      await off.audioWorklet.addModule('vendor/rubberband/rubberband-processor.js');
+      const node = new AudioWorkletNode(off, 'rubberband-processor', {
+        numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+      });
+      // Warm-up : le worklet Rubber Band initialise son WASM de façon asynchrone. Le processor
+      // vendoré NE poste AUCUN message d'état sur son port (il ne fait que recevoir pitch/tempo/
+      // quality/close), donc on ne peut pas attendre un « ready » précis : on laisse un délai fixe
+      // avant startRendering() pour éviter un début muet. Le handler onmessage reste en filet au
+      // cas où une future version du worklet signalerait sa disponibilité. À valider sur appareil
+      // (Task 4) : si le début est muet, allonger ce délai.
+      await new Promise((resolve) => {
+        let done = false;
+        const finish = () => { if (!done) { done = true; resolve(); } };
+        node.port.onmessage = finish;
+        setTimeout(finish, 1500);
+      });
+      // Mêmes messages, même ordre et même format JSON que le backend live (applyParams()).
+      node.port.postMessage(JSON.stringify(['quality', true]));
+      node.port.postMessage(JSON.stringify(['tempo', 1.0]));
+      node.port.postMessage(JSON.stringify(['pitch', Math.pow(2, pitchSemitones / 12) / speed]));
+      const src = off.createBufferSource();
+      src.buffer = decoded;
+      src.playbackRate.value = speed;
+      src.connect(node);
+      node.connect(off.destination);
+      src.start(0, fromSec, span);
+      const rendered = await off.startRendering();
+      return encodeMp3(rendered);
+    },
     dispose() { stopPolling(); if (backend) backend.dispose(); },
   };
 })();
