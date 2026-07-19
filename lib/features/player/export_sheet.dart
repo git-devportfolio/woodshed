@@ -39,6 +39,7 @@ class _ExportSheetState extends State<ExportSheet> {
   }
 
   Future<void> _generate() async {
+    if (_generating) return;
     setState(() {
       _generating = true;
       _mp3 = null;
@@ -88,13 +89,22 @@ class _ExportSheetState extends State<ExportSheet> {
               ChoiceChip(
                 label: const Text('Morceau entier'),
                 selected: _scope == _Scope.whole,
-                onSelected: (_) => setState(() => _scope = _Scope.whole),
+                onSelected: (_) => setState(() {
+                  _scope = _Scope.whole;
+                  _mp3 = null;
+                  _fileName = null;
+                }),
               ),
               ChoiceChip(
                 label: const Text('Boucle A/B'),
                 selected: _scope == _Scope.loop,
-                onSelected:
-                    _hasLoop ? (_) => setState(() => _scope = _Scope.loop) : null,
+                onSelected: _hasLoop
+                    ? (_) => setState(() {
+                          _scope = _Scope.loop;
+                          _mp3 = null;
+                          _fileName = null;
+                        })
+                    : null,
               ),
             ],
           ),
