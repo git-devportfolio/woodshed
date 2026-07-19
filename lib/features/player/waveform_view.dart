@@ -36,6 +36,7 @@ enum _Handle { none, a, b }
 
 class _WaveformViewState extends State<WaveformView> {
   _Handle _dragging = _Handle.none;
+  double _grabDx = 0; // écart doigt↔poignée à la prise (déplacement relatif, sans saut)
 
   double _timeToX(Duration t, double width) {
     final ms = widget.duration.inMilliseconds;
@@ -55,24 +56,27 @@ class _WaveformViewState extends State<WaveformView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        const touch = 40.0; // tolérance tactile autour d'une poignée (doigt)
         return GestureDetector(
-          onTapDown: (d) => widget.onSeek(_xToTime(d.localPosition.dx, width)),
+          behavior: HitTestBehavior.opaque,
+          // Tap = seek (ne se déclenche que si ce n'est pas un glissement).
+          onTapUp: (d) => widget.onSeek(_xToTime(d.localPosition.dx, width)),
+          // Glisser attrape la poignée la PLUS PROCHE du doigt (pas besoin de viser),
+          // puis la déplace relativement à la prise (aucun saut).
           onHorizontalDragStart: (d) {
             final x = d.localPosition.dx;
             final ax = _timeToX(widget.loopA, width);
             final bx = _timeToX(widget.loopB, width);
-            if ((x - ax).abs() <= touch) {
+            if ((x - ax).abs() <= (x - bx).abs()) {
               _dragging = _Handle.a;
-            } else if ((x - bx).abs() <= touch) {
-              _dragging = _Handle.b;
+              _grabDx = x - ax;
             } else {
-              _dragging = _Handle.none; // drag hors poignée : ignoré (le seek se fait au tap)
+              _dragging = _Handle.b;
+              _grabDx = x - bx;
             }
           },
           onHorizontalDragUpdate: (d) {
             if (_dragging == _Handle.none) return;
-            final t = _xToTime(d.localPosition.dx, width);
+            final t = _xToTime(d.localPosition.dx - _grabDx, width);
             if (_dragging == _Handle.a) {
               widget.onSetA(t);
             } else if (_dragging == _Handle.b) {
@@ -92,6 +96,7 @@ class _WaveformViewState extends State<WaveformView> {
               waveColor: scheme.primary.withValues(alpha: 0.6),
               loopColor: scheme.tertiary.withValues(alpha: 0.30),
               handleColor: scheme.tertiary,
+              knobRingColor: scheme.surface,
               playheadColor: scheme.error,
             ),
           ),
@@ -112,6 +117,7 @@ class _WaveformPainter extends CustomPainter {
     required this.waveColor,
     required this.loopColor,
     required this.handleColor,
+    required this.knobRingColor,
     required this.playheadColor,
   });
 
@@ -121,7 +127,7 @@ class _WaveformPainter extends CustomPainter {
   final Duration loopA;
   final Duration loopB;
   final bool loopEnabled;
-  final Color waveColor, loopColor, handleColor, playheadColor;
+  final Color waveColor, loopColor, handleColor, knobRingColor, playheadColor;
 
   double _x(Duration t, double w) {
     final ms = duration.inMilliseconds;
@@ -151,14 +157,22 @@ class _WaveformPainter extends CustomPainter {
       }
     }
 
-    // Poignées A et B
-    final handle = Paint()
+    // Poignées A et B : lignes verticales + pastilles bien visibles (cibles tactiles).
+    final line = Paint()
       ..color = handleColor
       ..strokeWidth = loopEnabled ? 3 : 2;
-    canvas.drawLine(Offset(ax, 0), Offset(ax, size.height), handle);
-    canvas.drawLine(Offset(bx, 0), Offset(bx, size.height), handle);
-    canvas.drawCircle(Offset(ax, 10), 10, handle);
-    canvas.drawCircle(Offset(bx, size.height - 10), 10, handle);
+    canvas.drawLine(Offset(ax, 0), Offset(ax, size.height), line);
+    canvas.drawLine(Offset(bx, 0), Offset(bx, size.height), line);
+    const r = 13.0;
+    final knobFill = Paint()..color = handleColor;
+    final knobRing = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..color = knobRingColor;
+    for (final knob in [Offset(ax, r), Offset(bx, size.height - r)]) {
+      canvas.drawCircle(knob, r, knobFill);
+      canvas.drawCircle(knob, r, knobRing);
+    }
 
     // Tête de lecture
     final px = _x(position, size.width);

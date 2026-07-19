@@ -70,6 +70,12 @@ class _PlayerPageState extends State<PlayerPage> {
   String _fmt(Duration d) =>
       '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
 
+  String _pitchLabel(double p) {
+    final n = p.round();
+    if (n == 0) return '0';
+    return n > 0 ? '+$n' : '−${n.abs()}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final total = Duration(milliseconds: widget.track.durationMs);
@@ -177,14 +183,35 @@ class _PlayerPageState extends State<PlayerPage> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    Text('Pitch : ${_c.pitch.toStringAsFixed(0)} demi-tons'),
-                    Slider(
-                      value: _c.pitch,
-                      min: -6,
-                      max: 6,
-                      divisions: 12,
-                      label: _c.pitch.toStringAsFixed(0),
-                      onChanged: (v) => _c.setPitch(v),
+                    Row(
+                      children: [
+                        const Text('Pitch (demi-tons)'),
+                        const Spacer(),
+                        IconButton.filledTonal(
+                          tooltip: '−1 demi-ton',
+                          onPressed: _c.pitch > -6
+                              ? () => _c.setPitch(
+                                  (_c.pitch - 1).clamp(-6.0, 6.0).toDouble())
+                              : null,
+                          icon: const Icon(Icons.remove),
+                        ),
+                        SizedBox(
+                          width: 52,
+                          child: Text(
+                            _pitchLabel(_c.pitch),
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                        IconButton.filledTonal(
+                          tooltip: '+1 demi-ton',
+                          onPressed: _c.pitch < 6
+                              ? () => _c.setPitch(
+                                  (_c.pitch + 1).clamp(-6.0, 6.0).toDouble())
+                              : null,
+                          icon: const Icon(Icons.add),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     const Text('Vitesse'),
