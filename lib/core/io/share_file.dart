@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
@@ -54,5 +55,6 @@ void downloadFile(Uint8List bytes, String name, String mime) {
   web.document.body!.appendChild(a);
   a.click();
   a.remove();
-  web.URL.revokeObjectURL(url);
+  // Révoquer l'URL après un court délai pour ne pas interrompre un téléchargement en cours.
+  Future<void>.delayed(const Duration(seconds: 1), () => web.URL.revokeObjectURL(url));
 }

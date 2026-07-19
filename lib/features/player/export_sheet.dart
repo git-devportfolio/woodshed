@@ -38,6 +38,21 @@ class _ExportSheetState extends State<ExportSheet> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
+  String _estimatedDuration() {
+    final loop = _scope == _Scope.loop;
+    final from = loop ? widget.controller.loopA : Duration.zero;
+    final to = loop ? widget.controller.loopB : _total;
+    final secs = exportOutputSeconds(
+      fromSec: from.inMilliseconds / 1000.0,
+      toSec: to.inMilliseconds / 1000.0,
+      speed: widget.controller.speed,
+    );
+    final total = secs.round();
+    final m = total ~/ 60;
+    final s = (total % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
   Future<void> _generate() async {
     if (_generating) return;
     setState(() {
@@ -108,6 +123,9 @@ class _ExportSheetState extends State<ExportSheet> {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Text('Durée estimée : ${_estimatedDuration()}',
+              style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _generating ? null : _generate,
