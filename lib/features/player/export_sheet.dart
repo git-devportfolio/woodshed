@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../core/audio/export_naming.dart';
@@ -26,6 +27,8 @@ class ExportSheet extends StatefulWidget {
 class _ExportSheetState extends State<ExportSheet> {
   _Scope _scope = _Scope.whole;
   bool _generating = false;
+  double _progress = 0; // avancement estimé de la capture temps réel [0,1]
+  Timer? _progressTimer;
   Uint8List? _mp3;
   String? _fileName;
 
@@ -38,15 +41,19 @@ class _ExportSheetState extends State<ExportSheet> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
-  String _estimatedDuration() {
+  // Durée de sortie estimée (s) pour la portée choisie et la vitesse courante.
+  double _estimatedSeconds() {
     final loop = _scope == _Scope.loop;
     final from = loop ? widget.controller.loopA : Duration.zero;
     final to = loop ? widget.controller.loopB : _total;
-    final secs = exportOutputSeconds(
+    return exportOutputSeconds(
       fromSec: from.inMilliseconds / 1000.0,
       toSec: to.inMilliseconds / 1000.0,
       speed: widget.controller.speed,
     );
+  }
+
+  String _fmtSecs(num secs) {
     final total = secs.round();
     final m = total ~/ 60;
     final s = (total % 60).toString().padLeft(2, '0');
@@ -55,9 +62,19 @@ class _ExportSheetState extends State<ExportSheet> {
 
   Future<void> _generate() async {
     if (_generating) return;
+    final estSecs = _estimatedSeconds();
     setState(() {
       _generating = true;
+      _progress = 0;
       _mp3 = null;
+    });
+    // La capture se fait en temps réel : on estime l'avancement par le temps écoulé.
+    final sw = Stopwatch()..start();
+    _progressTimer?.cancel();
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      if (!mounted) return;
+      final frac = estSecs > 0 ? sw.elapsedMilliseconds / (estSecs * 1000) : 0.0;
+      setState(() => _progress = frac.clamp(0.0, 0.98));
     });
     try {
       final loop = _scope == _Scope.loop;
@@ -79,8 +96,21 @@ class _ExportSheetState extends State<ExportSheet> {
     } catch (e) {
       _snack('Échec de l\'export : $e');
     } finally {
-      if (mounted) setState(() => _generating = false);
+      _progressTimer?.cancel();
+      _progressTimer = null;
+      if (mounted) {
+        setState(() {
+          _generating = false;
+          _progress = 0;
+        });
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _progressTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -124,17 +154,24 @@ class _ExportSheetState extends State<ExportSheet> {
             ],
           ),
           const SizedBox(height: 8),
-          Text('Durée estimée : ${_estimatedDuration()}',
+          Text('Durée estimée : ${_fmtSecs(_estimatedSeconds())}',
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _generating ? null : _generate,
-            icon: _generating
-                ? const SizedBox(
-                    width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.graphic_eq),
-            label: Text(_generating ? 'Génération…' : 'Générer le MP3'),
+            icon: const Icon(Icons.graphic_eq),
+            label: Text(_generating ? 'Génération en cours…' : 'Générer le MP3'),
           ),
+          if (_generating) ...[
+            const SizedBox(height: 12),
+            LinearProgressIndicator(value: _progress == 0 ? null : _progress),
+            const SizedBox(height: 6),
+            Text(
+              'Lecture en temps réel (~${_fmtSecs(_estimatedSeconds())}). Garde l\'app ouverte.',
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
           if (_mp3 != null) ...[
             const SizedBox(height: 16),
             Text('$_fileName · $kb Ko', textAlign: TextAlign.center),

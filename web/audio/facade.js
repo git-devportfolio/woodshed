@@ -57,11 +57,10 @@
     }
     return i16;
   }
-  function encodeMp3(buf) {
-    const sr = buf.sampleRate;
-    const left = floatToInt16(buf.getChannelData(0));
-    const right = buf.numberOfChannels > 1 ? floatToInt16(buf.getChannelData(1)) : left;
-    const enc = new window.lamejs.Mp3Encoder(2, sr, 192);
+  function encodeMp3(leftF32, rightF32, sampleRate) {
+    const left = floatToInt16(leftF32);
+    const right = floatToInt16(rightF32);
+    const enc = new window.lamejs.Mp3Encoder(2, sampleRate, 192);
     const block = 1152;
     const chunks = [];
     for (let i = 0; i < left.length; i += block) {
@@ -73,6 +72,15 @@
     let len = 0;
     for (const c of chunks) len += c.length;
     const out = new Uint8Array(len);
+    let o = 0;
+    for (const c of chunks) { out.set(c, o); o += c.length; }
+    return out;
+  }
+  // Concatène des morceaux Float32 (chunks de capture) en un seul Float32Array.
+  function flattenChunks(chunks) {
+    let len = 0;
+    for (const c of chunks) len += c.length;
+    const out = new Float32Array(len);
     let o = 0;
     for (const c of chunks) { out.set(c, o); o += c.length; }
     return out;
@@ -142,41 +150,80 @@
     onPosition(cb) { positionCb = cb; },
     // À appeler dans un geste utilisateur (iOS) pour sortir l'AudioContext de l'état suspendu.
     resume() { if (ctx && ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} } },
-    // Rend hors-ligne le segment [fromSec, toSec] avec pitch/vitesse, puis encode en MP3.
-    // Réplique EXACTEMENT le graphe de lecture du backend 'rubberband' (cf. backend-rubberband.js)
-    // pour que le MP3 sonne comme la lecture : source.playbackRate = vitesse, worklet tempo = 1.0,
-    // worklet pitch = 2^(demi-tons/12) / vitesse (compensation du resampling). Volume NON appliqué.
-    // Réutilise le buffer `decoded` déjà en mémoire (pas de re-décodage).
+    // Rend le segment [fromSec, toSec] avec pitch/vitesse et encode en MP3.
+    // CAPTURE TEMPS RÉEL : on rejoue le segment via le graphe temps réel qui fonctionne
+    // (source -> worklet Rubber Band -> enregistreur -> gain 0 -> sortie) et on capture le PCM.
+    // Un OfflineAudioContext ne convient pas : le WASM asynchrone du worklet n'y est pas prêt au
+    // moment du rendu (aucun signal de disponibilité à attendre), d'où un fichier muet. Le contexte
+    // réel garde le worklet actif, comme la lecture. Graphe/pitch identiques au backend 'rubberband'
+    // (source.playbackRate = vitesse, tempo = 1.0, pitch = 2^(demi-tons/12) / vitesse). Volume NON
+    // appliqué. Réutilise le buffer `decoded`. Durée ≈ temps réel (span / vitesse).
     async renderMp3(fromSec, toSec, pitchSemitones, speed) {
       if (!decoded) throw new Error('Aucun morceau chargé');
-      const sr = (ctx && ctx.sampleRate) || 44100;
       const span = toSec - fromSec;
       if (!(span > 0) || !(speed > 0)) throw new Error('Plage ou vitesse invalide pour l\'export');
-      const outSec = span / speed;
-      const tailMarginSec = 1.0; // marge pour drainer la latence de traitement du worklet (pitch shifter) et ne pas couper la fin
-      const frames = Math.max(1, Math.ceil((outSec + tailMarginSec) * sr));
-      const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-      const off = new OfflineCtx(2, frames, sr);
-      await off.audioWorklet.addModule('vendor/rubberband/rubberband-processor.js');
-      const node = new AudioWorkletNode(off, 'rubberband-processor', {
+      const sr = ctx.sampleRate;
+
+      // Contexte réel requis (on est dans le geste utilisateur du tap « Générer »).
+      if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (e) {} }
+      // Stoppe la lecture live pour ne capturer que l'export.
+      if (backend) backend.pause();
+      stopPolling();
+      // Le module worklet est déjà chargé par le backend 'rubberband' ; garde au cas où.
+      try { await ctx.audioWorklet.addModule('vendor/rubberband/rubberband-processor.js'); } catch (e) {}
+
+      const node = new AudioWorkletNode(ctx, 'rubberband-processor', {
         numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
       });
-      // Le worklet Rubber Band vendoré n'expose aucun signal de disponibilité (aucun postMessage
-      // sur son port). On laisse donc un délai fixe d'amorçage pour que le WASM s'initialise avant
-      // le rendu, sinon le début peut être muet. Valeur à confirmer sur appareil (démarrage à froid).
-      await new Promise((resolve) => { setTimeout(resolve, 1500); });
-      // Mêmes messages, même ordre et même format JSON que le backend live (applyParams()).
       node.port.postMessage(JSON.stringify(['quality', true]));
       node.port.postMessage(JSON.stringify(['tempo', 1.0]));
       node.port.postMessage(JSON.stringify(['pitch', Math.pow(2, pitchSemitones / 12) / speed]));
-      const src = off.createBufferSource();
+
+      const src = ctx.createBufferSource();
       src.buffer = decoded;
       src.playbackRate.value = speed;
+
+      const recorder = ctx.createScriptProcessor(4096, 2, 2);
+      const silent = ctx.createGain();
+      silent.gain.value = 0; // n'émet rien vers les haut-parleurs pendant la capture
+
+      const leftChunks = [];
+      const rightChunks = [];
+      let capturing = false;
+      recorder.onaudioprocess = (e) => {
+        if (!capturing) return;
+        const inBuf = e.inputBuffer;
+        const l = inBuf.getChannelData(0);
+        const r = inBuf.numberOfChannels > 1 ? inBuf.getChannelData(1) : l;
+        leftChunks.push(new Float32Array(l));
+        rightChunks.push(new Float32Array(r));
+      };
+
       src.connect(node);
-      node.connect(off.destination);
-      src.start(0, fromSec, span);
-      const rendered = await off.startRendering();
-      return encodeMp3(rendered);
+      node.connect(recorder);
+      recorder.connect(silent);
+      silent.connect(ctx.destination);
+
+      // Amorçage : laisse le WASM du nouveau nœud s'initialiser (contexte réel => rapide).
+      await new Promise((res) => setTimeout(res, 300));
+
+      await new Promise((resolve) => {
+        src.onended = () => {
+          // Laisse la queue du pitch shifter et de l'enregistreur se vider avant d'arrêter.
+          setTimeout(() => { capturing = false; resolve(); }, 400);
+        };
+        capturing = true;
+        src.start(0, fromSec, span);
+      });
+
+      // Débranchement / nettoyage.
+      try { src.disconnect(); } catch (e) {}
+      try { node.port.postMessage(JSON.stringify(['close'])); } catch (e) {}
+      try { node.disconnect(); } catch (e) {}
+      try { recorder.onaudioprocess = null; recorder.disconnect(); } catch (e) {}
+      try { silent.disconnect(); } catch (e) {}
+
+      return encodeMp3(flattenChunks(leftChunks), flattenChunks(rightChunks), sr);
     },
     dispose() { stopPolling(); if (backend) backend.dispose(); },
   };
