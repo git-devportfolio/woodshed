@@ -151,26 +151,20 @@
       if (!decoded) throw new Error('Aucun morceau chargé');
       const sr = (ctx && ctx.sampleRate) || 44100;
       const span = toSec - fromSec;
-      const outSec = speed > 0 ? span / speed : span;
-      const frames = Math.max(1, Math.ceil(outSec * sr));
+      if (!(span > 0) || !(speed > 0)) throw new Error('Plage ou vitesse invalide pour l\'export');
+      const outSec = span / speed;
+      const tailMarginSec = 1.0; // marge pour drainer la latence de traitement du worklet (pitch shifter) et ne pas couper la fin
+      const frames = Math.max(1, Math.ceil((outSec + tailMarginSec) * sr));
       const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
       const off = new OfflineCtx(2, frames, sr);
       await off.audioWorklet.addModule('vendor/rubberband/rubberband-processor.js');
       const node = new AudioWorkletNode(off, 'rubberband-processor', {
         numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
       });
-      // Warm-up : le worklet Rubber Band initialise son WASM de façon asynchrone. Le processor
-      // vendoré NE poste AUCUN message d'état sur son port (il ne fait que recevoir pitch/tempo/
-      // quality/close), donc on ne peut pas attendre un « ready » précis : on laisse un délai fixe
-      // avant startRendering() pour éviter un début muet. Le handler onmessage reste en filet au
-      // cas où une future version du worklet signalerait sa disponibilité. À valider sur appareil
-      // (Task 4) : si le début est muet, allonger ce délai.
-      await new Promise((resolve) => {
-        let done = false;
-        const finish = () => { if (!done) { done = true; resolve(); } };
-        node.port.onmessage = finish;
-        setTimeout(finish, 1500);
-      });
+      // Le worklet Rubber Band vendoré n'expose aucun signal de disponibilité (aucun postMessage
+      // sur son port). On laisse donc un délai fixe d'amorçage pour que le WASM s'initialise avant
+      // le rendu, sinon le début peut être muet. Valeur à confirmer sur appareil (démarrage à froid).
+      await new Promise((resolve) => { setTimeout(resolve, 1500); });
       // Mêmes messages, même ordre et même format JSON que le backend live (applyParams()).
       node.port.postMessage(JSON.stringify(['quality', true]));
       node.port.postMessage(JSON.stringify(['tempo', 1.0]));
