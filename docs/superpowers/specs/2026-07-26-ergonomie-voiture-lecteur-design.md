@@ -187,31 +187,33 @@ Un `LayoutBuilder` **placé dans le `body`** calcule la hauteur de la waveform. 
 reçoit exclut déjà l'`AppBar`, donc la constante soustraite ne compte que les blocs du `body` :
 
 ```dart
-// _fixedBodyHeight = 462 : tout le body sauf la waveform
+// _fixedBodyHeight = 466 : tout le body sauf la waveform
 final waveformHeight = (constraints.maxHeight - _fixedBodyHeight).clamp(96.0, 180.0);
 ```
 
 | Élément du `body` | Hauteur |
 |---|---|
 | Padding vertical (2 × 16) | 32 |
-| Ligne temps + Boucle A–B + reset | 56 |
+| Ligne temps + Boucle A–B + reset (hauteur **forcée** à 56, cf. ci-dessous) | 56 |
 | Transport | 76 |
 | Pitch (label 22 + écart 8 + boutons 64) | 94 |
 | Vitesse (label 22 + écart 8 + boutons 56) | 86 |
-| Volume (label 22 + slider 44) | 66 |
+| Volume (label 22 + slider 48) | 70 |
 | Écarts inter-blocs : ligne temps→transport 12, transport→pitch 16, pitch→vitesse 12, vitesse→volume 12 | 52 |
-| **`_fixedBodyHeight`** | **462** |
+| **`_fixedBodyHeight`** | **466** |
 
-La waveform est suivie directement du `Row` temps/boucle, sans écart dédié — comme aujourd'hui.
-Écran complet requis : 462 + 56 d'`AppBar` + 96 de waveform minimale = **614 px**.
+La waveform est suivie directement du `Row` temps/boucle, sans écart dédié — comme aujourd'hui. Ce
+`Row` voit sa hauteur **explicitement fixée à 56 px** (`SizedBox`), sans quoi la constante ne
+correspondrait pas au rendu réel. Écran complet requis : 466 + 56 d'`AppBar` + 96 de waveform
+minimale = **618 px**.
 
 Comportement attendu (hauteur du `body` = hauteur utile de l'écran − 56 d'`AppBar`) :
 
 | Contexte | Écran utile | `body` | Waveform | Scroll |
 |---|---|---|---|---|
 | PWA installée, iPhone 14 | ~763 px | ~707 px | 180 px | non |
-| Safari avec barres | ~663 px | ~607 px | 145 px | non |
-| iPhone SE portrait | ~548 px | ~492 px | 96 px | oui (déficit ~66 px) |
+| Safari avec barres | ~663 px | ~607 px | 141 px | non |
+| iPhone SE portrait | ~548 px | ~492 px | 96 px | oui (déficit ~70 px) |
 | Paysage | ~340 px | ~284 px | 96 px | oui |
 
 Un `SingleChildScrollView` enveloppe la colonne et sert de **filet** : il ne défile que si le contenu
@@ -234,14 +236,20 @@ lib/core/theme/
 lib/main.dart                        # utilise buildWoodshedTheme()
 lib/features/player/
   player_page.dart                   # 240 -> ~110 lignes : composition + LayoutBuilder
-  widgets/transport_bar.dart          # NOUVEAU
-  widgets/pitch_stepper.dart          # NOUVEAU
-  widgets/speed_selector.dart         # NOUVEAU
+  widgets/transport_bar.dart         # NOUVEAU
+  widgets/pitch_stepper.dart         # NOUVEAU
+  widgets/speed_selector.dart        # NOUVEAU
+  widgets/section_label.dart         # NOUVEAU : libellé de bloc (16 px w600), partagé
+test/core/theme/
+  app_theme_test.dart                # NOUVEAU
 test/features/player/
   transport_bar_test.dart            # NOUVEAU
   pitch_stepper_test.dart            # NOUVEAU
   speed_selector_test.dart           # NOUVEAU
 ```
+
+`section_label.dart` évite de répéter trois fois le même style de libellé (pitch, vitesse, volume) —
+c'est la seule pièce partagée entre les widgets extraits.
 
 L'extraction sert deux buts au-delà de la propreté. D'abord `player_page.dart`, déjà à 240 lignes et
 sur une trajectoire croissante, redevient lisible d'un coup d'œil. Ensuite — et c'est le point
@@ -251,7 +259,13 @@ et des callbacks, et deviennent les **premiers widgets testables** du projet.
 
 ## 9. Tests
 
-Trois tests widget, rendus possibles précisément par l'extraction :
+Un test unitaire sur le thème, et trois tests widget rendus possibles précisément par l'extraction :
+
+- **`app_theme_test.dart`** : la typographie du thème porte bien la famille `Inter` ; la palette reste
+  celle de la graine `deepPurple` ; le thème reste en `Brightness.light`. Ce test ne garantit pas que
+  les `.ttf` sont présents — Flutter se rabat silencieusement sur la police système —, d'où la
+  vérification visuelle explicite au moment de l'implémentation.
+
 
 - **`speed_selector_test.dart`** : expose exactement 4 boutons ; **aucun libellé `0.5`** ; le tap
   remonte la valeur attendue via `onChanged` ; la valeur courante porte l'état sélectionné (et une
