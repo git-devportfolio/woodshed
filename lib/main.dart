@@ -5,6 +5,7 @@ import 'core/audio/web_audio_engine.dart';
 import 'core/io/persistent_storage.dart';
 import 'core/library/idb_library_repository.dart';
 import 'core/library/library_repository.dart';
+import 'core/theme/app_theme.dart';
 import 'features/library/library_page.dart';
 
 void main() {
@@ -23,9 +24,7 @@ class WoodshedApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
         title: 'woodshed',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        ),
+        theme: buildWoodshedTheme(),
         home: LibraryPage(repo: repo, engine: engine),
       );
 }
