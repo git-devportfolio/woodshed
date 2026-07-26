@@ -38,8 +38,8 @@ la police) ; logique métier et moteur audio ; layout paysage dédié.
 | Sujet | Décision | Raison |
 |---|---|---|
 | Cible ergonomique | Usage **voiture** | Écran manipulé à l'arrêt ou au feu rouge, commandes au volant pour le reste. Impose de gros contrôles, un contraste net et zéro scroll. |
-| Police | **Inter embarquée** dans `assets/fonts/` | Rendu identique partout et **garanti hors réseau** (précache du service worker), contrairement à `google_fonts` dont le premier lancement offline retombe sur la police système. |
-| Poids de police | **Deux statiques** (400 + 600), pas la variable | Flutter pilote mal les axes variables ; deux poids statiques sont prévisibles pour ~2 × 110 Ko. |
+| Police | **Inter embarquée** dans `assets/fonts/` | Rendu identique partout, et servie **same-origin avec le reste du bundle** — contrairement à `google_fonts`, dont le premier lancement hors réseau retombe sur la police système. *Corrigé après implémentation :* le `flutter_service_worker.js` généré par Flutter 3.44 est un stub qui se désenregistre, il n'y a donc **pas de précache** — les polices dépendent du cache HTTP ordinaire. L'embarquement reste le bon choix (asset local > CDN tiers), mais l'argument « garanti hors réseau » est plus faible qu'annoncé. |
+| Poids de police | **Deux statiques** (400 + 600), pas la variable | Flutter pilote mal les axes variables ; deux poids statiques sont prévisibles. *Poids réels mesurés :* 411 640 + 419 744 octets, soit **+831 Ko** — et non ~110 Ko par fichier : Inter v4 embarque cyrillique, grec et vietnamien, et Flutter ne subsette que les polices d'icônes, jamais les polices custom. |
 | Thème | **Clair uniquement, palette inchangée** | Le confort nocturne est un besoin distinct, non encore confirmé à l'usage. Garde ce lot petit et vérifiable à l'œil. |
 | Vitesses | **0.75 / 0.85 / 0.95 / 1x** | Le `0.5x` est retiré comme demandé. Conséquence assumée : plus aucun palier sous 0.75 pour déchiffrer un passage rapide. |
 | Une seule ligne | `Row` d'`Expanded`, **plus aucun `Wrap`** | Le retour à la ligne devient structurellement impossible, au lieu de dépendre de la largeur disponible. |
@@ -285,8 +285,10 @@ assez gros pour être touchés sans regarder.
 
 - **Perte du 0.5x** : plus aucun palier sous 0.75 pour déchiffrer un passage très rapide. Choix
   explicite ; réintroduire une valeur lente si le manque se fait sentir à la pratique.
-- **Bundle +220 Ko** pour Inter. Acceptable ; réductible par subset latin (~40 Ko/poids) si le
-  premier chargement de la PWA devient gênant.
+- **Bundle +831 Ko** pour Inter (mesuré après implémentation ; l'estimation initiale de +220 Ko était
+  fausse d'un facteur ~4). C'est ~35 % du poids de `main.dart.js` (2,35 Mo). Le subset latin
+  (~40 Ko/poids) devient donc nettement plus attrayant qu'annoncé, d'autant qu'il n'y a pas de
+  précache de service worker pour amortir le premier chargement.
 - **Waveform à 96 px** sur petit écran : le pointage fin de A/B y devient plus délicat. Les poignées
   A/B ont été élargies récemment (commit `cf127ce`), ce qui limite la gêne.
 - **Tailles calibrées sur le papier** : les 76 / 64 / 56 px viennent d'un calcul de place, pas d'un
