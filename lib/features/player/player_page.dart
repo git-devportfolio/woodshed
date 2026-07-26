@@ -114,15 +114,15 @@ class _PlayerPageState extends State<PlayerPage> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : AnimatedBuilder(
-              animation: _c,
-              builder: (context, _) => LayoutBuilder(
-                builder: (context, constraints) {
-                  final waveformHeight =
-                      (constraints.maxHeight - _fixedBodyHeight)
-                          .clamp(96.0, 180.0);
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final waveformHeight =
+                    (constraints.maxHeight - _fixedBodyHeight)
+                        .clamp(96.0, 180.0);
 
-                  return SingleChildScrollView(
+                return AnimatedBuilder(
+                  animation: _c,
+                  builder: (context, _) => SingleChildScrollView(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -148,9 +148,17 @@ class _PlayerPageState extends State<PlayerPage> {
                             child: Row(
                               children: [
                                 Text(
-                                    '${_fmt(Duration(milliseconds: posMs.round()))} / ${_fmt(total)}'),
+                                  '${_fmt(Duration(milliseconds: posMs.round()))} / ${_fmt(total)}',
+                                  style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600),
+                                ),
                                 const Spacer(),
                                 FilledButton.tonalIcon(
+                                  style: FilledButton.styleFrom(
+                                    minimumSize:
+                                        const Size.fromHeight(56),
+                                  ),
                                   onPressed: _c.toggleLoop,
                                   icon: Icon(_c.loopEnabled
                                       ? Icons.repeat_on
@@ -201,9 +209,9 @@ class _PlayerPageState extends State<PlayerPage> {
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
     );
   }

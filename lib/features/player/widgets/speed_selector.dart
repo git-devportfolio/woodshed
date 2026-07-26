@@ -20,12 +20,18 @@ class SpeedSelector extends StatelessWidget {
   /// `1.0` s'affiche `1x` ; les autres gardent leurs décimales (`0.75x`).
   static String label(double rate) => rate == 1.0 ? '1x' : '${rate}x';
 
+  /// Posé sur le `Text` (et non dans `styleFrom`) pour hériter la famille de
+  /// police du thème ambiant : un `TextStyle` de `Text` a `inherit: true` et
+  /// fusionne avec le `DefaultTextStyle` du bouton, alors qu'un `textStyle:`
+  /// dans `ButtonStyleButton.styleFrom` remplace intégralement celui du thème.
+  static const _labelStyle =
+      TextStyle(fontSize: 16, fontWeight: FontWeight.w600);
+
   @override
   Widget build(BuildContext context) {
     final style = FilledButton.styleFrom(
       minimumSize: const Size.fromHeight(_height),
       padding: EdgeInsets.zero,
-      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(_radius),
       ),
@@ -46,13 +52,13 @@ class SpeedSelector extends StatelessWidget {
                         key: ValueKey('speed-$rate'),
                         style: style,
                         onPressed: () => onChanged(rate),
-                        child: Text(label(rate)),
+                        child: Text(label(rate), style: _labelStyle),
                       )
                     : FilledButton.tonal(
                         key: ValueKey('speed-$rate'),
                         style: style,
                         onPressed: () => onChanged(rate),
-                        child: Text(label(rate)),
+                        child: Text(label(rate), style: _labelStyle),
                       ),
               ),
             ],

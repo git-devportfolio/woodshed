@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:woodshed/core/theme/app_theme.dart';
 import 'package:woodshed/features/player/widgets/speed_selector.dart';
 
 Widget _host({required double speed, required ValueChanged<double> onChanged}) =>
     MaterialApp(
+      home: Scaffold(
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SpeedSelector(speed: speed, onChanged: onChanged),
+        ),
+      ),
+    );
+
+/// Comme [_host], mais avec le vrai thème de l'app : sans lui, aucun `Inter`
+/// n'est disponible à hériter et un test de police ne prouverait rien.
+Widget _hostThemed({required double speed, required ValueChanged<double> onChanged}) =>
+    MaterialApp(
+      theme: buildWoodshedTheme(),
       home: Scaffold(
         body: Padding(
           padding: const EdgeInsets.all(16),
@@ -76,6 +91,25 @@ void main() {
     final y = tester.getCenter(find.byKey(const ValueKey('speed-0.75'))).dy;
     for (final k in ['speed-0.85', 'speed-0.95', 'speed-1.0']) {
       expect(tester.getCenter(find.byKey(ValueKey(k))).dy, y);
+    }
+  });
+
+  testWidgets(
+      'les libellés de vitesse héritent la police Inter du thème (sélectionné et non sélectionné)',
+      (tester) async {
+    await tester.pumpWidget(_hostThemed(speed: 1.0, onChanged: (_) {}));
+
+    // '1x' = bouton sélectionné (FilledButton) ; '0.75x' = non sélectionné
+    // (FilledButton.tonal). Les deux doivent hériter la même police/taille/
+    // graisse, sans quoi le correctif aurait perdu l'une des deux variantes.
+    for (final label in ['1x', '0.75x']) {
+      final resolved =
+          tester.renderObject<RenderParagraph>(find.text(label)).text.style;
+
+      expect(resolved?.fontFamily, 'Inter',
+          reason: '$label doit hériter la police Inter du thème, pas retomber sur null/Roboto');
+      expect(resolved?.fontWeight, FontWeight.w600, reason: label);
+      expect(resolved?.fontSize, 16, reason: label);
     }
   });
 }
