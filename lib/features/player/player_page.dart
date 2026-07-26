@@ -6,6 +6,10 @@ import '../../core/library/track.dart';
 import 'export_sheet.dart';
 import 'player_controller.dart';
 import 'waveform_view.dart';
+import 'widgets/pitch_stepper.dart';
+import 'widgets/section_label.dart';
+import 'widgets/speed_selector.dart';
+import 'widgets/transport_bar.dart';
 
 class PlayerPage extends StatefulWidget {
   const PlayerPage({super.key, required this.track, required this.repo, required this.engine});
@@ -23,6 +27,11 @@ class _PlayerPageState extends State<PlayerPage> {
   Duration _position = Duration.zero;
   bool _loading = true;
   List<double> _peaks = const [];
+
+  /// Hauteur cumulée de tout le corps sauf la waveform (spec §7) : padding 32 +
+  /// ligne temps/boucle 56 + transport 76 + pitch 94 + vitesse 86 + volume 70 +
+  /// écarts 52.
+  static const _fixedBodyHeight = 466.0;
 
   @override
   void initState() {
@@ -70,12 +79,6 @@ class _PlayerPageState extends State<PlayerPage> {
   String _fmt(Duration d) =>
       '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
 
-  String _pitchLabel(double p) {
-    final n = p.round();
-    if (n == 0) return '0';
-    return n > 0 ? '+$n' : '−${n.abs()}';
-  }
-
   @override
   Widget build(BuildContext context) {
     final total = Duration(milliseconds: widget.track.durationMs);
@@ -113,126 +116,93 @@ class _PlayerPageState extends State<PlayerPage> {
           ? const Center(child: CircularProgressIndicator())
           : AnimatedBuilder(
               animation: _c,
-              builder: (context, _) => Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    WaveformView(
-                      peaks: _peaks,
-                      duration: total,
-                      position: Duration(milliseconds: posMs.round()),
-                      loopA: _c.loopA,
-                      loopB: _c.loopB,
-                      loopEnabled: _c.loopEnabled,
-                      onSeek: (t) {
-                        _c.seek(t);
-                        setState(() => _position = t);
-                      },
-                      onSetA: (t) => _c.setLoopA(t),
-                      onSetB: (t) => _c.setLoopB(t),
-                    ),
-                    Row(
-                      children: [
-                        Text('${_fmt(Duration(milliseconds: posMs.round()))} / ${_fmt(total)}'),
-                        const Spacer(),
-                        FilledButton.tonalIcon(
-                          onPressed: _c.toggleLoop,
-                          icon: Icon(_c.loopEnabled ? Icons.repeat_on : Icons.repeat),
-                          label: Text(_c.loopEnabled ? 'Boucle A–B : ON' : 'Boucle A–B'),
-                        ),
-                        IconButton(
-                          tooltip: 'Réinitialiser la boucle',
-                          onPressed: _c.resetLoop,
-                          icon: const Icon(Icons.settings_backup_restore),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        IconButton(
-                          iconSize: 32,
-                          tooltip: '−10 s',
-                          onPressed: () => _c.rewind10s(_position),
-                          icon: const Icon(Icons.replay_10),
-                        ),
-                        IconButton(
-                          iconSize: 44,
-                          onPressed: () =>
-                              _c.isPlaying ? _c.pause() : _c.play(),
-                          icon: Icon(
-                              _c.isPlaying ? Icons.pause : Icons.play_arrow),
-                        ),
-                        IconButton(
-                          iconSize: 32,
-                          tooltip: '+10 s',
-                          onPressed: () => _c.forward10s(_position),
-                          icon: const Icon(Icons.forward_10),
-                        ),
-                        IconButton(
-                          iconSize: 32,
-                          tooltip: 'Redémarrer',
-                          onPressed: () {
-                            _c.restart();
-                            setState(() => _position = _c.loopEnabled ? _c.loopA : Duration.zero);
-                          },
-                          icon: const Icon(Icons.replay),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        const Text('Pitch (demi-tons)'),
-                        const Spacer(),
-                        IconButton.filledTonal(
-                          tooltip: '−1 demi-ton',
-                          onPressed: _c.pitch > -6
-                              ? () => _c.setPitch(
-                                  (_c.pitch - 1).clamp(-6.0, 6.0).toDouble())
-                              : null,
-                          icon: const Icon(Icons.remove),
-                        ),
-                        SizedBox(
-                          width: 52,
-                          child: Text(
-                            _pitchLabel(_c.pitch),
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.titleLarge,
+              builder: (context, _) => LayoutBuilder(
+                builder: (context, constraints) {
+                  final waveformHeight =
+                      (constraints.maxHeight - _fixedBodyHeight)
+                          .clamp(96.0, 180.0);
+
+                  return SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          WaveformView(
+                            height: waveformHeight,
+                            peaks: _peaks,
+                            duration: total,
+                            position: Duration(milliseconds: posMs.round()),
+                            loopA: _c.loopA,
+                            loopB: _c.loopB,
+                            loopEnabled: _c.loopEnabled,
+                            onSeek: (t) {
+                              _c.seek(t);
+                              setState(() => _position = t);
+                            },
+                            onSetA: (t) => _c.setLoopA(t),
+                            onSetB: (t) => _c.setLoopB(t),
                           ),
-                        ),
-                        IconButton.filledTonal(
-                          tooltip: '+1 demi-ton',
-                          onPressed: _c.pitch < 6
-                              ? () => _c.setPitch(
-                                  (_c.pitch + 1).clamp(-6.0, 6.0).toDouble())
-                              : null,
-                          icon: const Icon(Icons.add),
-                        ),
-                      ],
+                          SizedBox(
+                            height: 56,
+                            child: Row(
+                              children: [
+                                Text(
+                                    '${_fmt(Duration(milliseconds: posMs.round()))} / ${_fmt(total)}'),
+                                const Spacer(),
+                                FilledButton.tonalIcon(
+                                  onPressed: _c.toggleLoop,
+                                  icon: Icon(_c.loopEnabled
+                                      ? Icons.repeat_on
+                                      : Icons.repeat),
+                                  label: Text(_c.loopEnabled
+                                      ? 'Boucle A–B : ON'
+                                      : 'Boucle A–B'),
+                                ),
+                                IconButton(
+                                  tooltip: 'Réinitialiser la boucle',
+                                  onPressed: _c.resetLoop,
+                                  icon: const Icon(
+                                      Icons.settings_backup_restore),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TransportBar(
+                            isPlaying: _c.isPlaying,
+                            onRewind: () => _c.rewind10s(_position),
+                            onPlayPause: () =>
+                                _c.isPlaying ? _c.pause() : _c.play(),
+                            onForward: () => _c.forward10s(_position),
+                            onRestart: () {
+                              _c.restart();
+                              setState(() => _position =
+                                  _c.loopEnabled ? _c.loopA : Duration.zero);
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          PitchStepper(
+                            pitch: _c.pitch,
+                            onChanged: _c.setPitch,
+                          ),
+                          const SizedBox(height: 12),
+                          SpeedSelector(
+                            speed: _c.speed,
+                            onChanged: _c.setSpeed,
+                          ),
+                          const SizedBox(height: 12),
+                          SectionLabel(
+                              'Volume : ${(_c.volume * 100).round()} %'),
+                          Slider(
+                            value: _c.volume,
+                            onChanged: (v) => _c.setVolume(v),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text('Vitesse'),
-                    Wrap(
-                      spacing: 8,
-                      children: [0.5, 0.75, 0.85, 0.95, 1.0]
-                          .map((r) => ChoiceChip(
-                                label: Text('${r}x'),
-                                selected: _c.speed == r,
-                                onSelected: (_) => _c.setSpeed(r),
-                              ))
-                          .toList(),
-                    ),
-                    const SizedBox(height: 16),
-                    Text('Volume : ${(_c.volume * 100).round()} %'),
-                    Slider(
-                      value: _c.volume,
-                      onChanged: (v) => _c.setVolume(v),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
     );
